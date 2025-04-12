@@ -49,14 +49,14 @@ const streamRoutes = require('./routes/stream.routes');
 const moderationRoutes = require('./routes/moderation.routes');
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/media', mediaRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/wallet', walletRoutes);
-app.use('/api/matches', matchRoutes);
-app.use('/api/streams', streamRoutes);
-app.use('/api/moderation', moderationRoutes);
+app.use('/auth', authRoutes);
+app.use('/users', userRoutes);
+app.use('/media', mediaRoutes);
+app.use('/chat', chatRoutes);
+app.use('/wallet', walletRoutes);
+app.use('/matches', matchRoutes);
+app.use('/streams', streamRoutes);
+app.use('/moderation', moderationRoutes);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
