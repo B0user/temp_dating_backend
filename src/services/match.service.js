@@ -2,6 +2,7 @@ const Match = require('../models/match.model');
 const User = require('../models/user.model');
 const Chat = require('../models/chat.model');
 const { z } = require('zod');
+const { generatePresignedUrl } = require('../utils/s3');
 
 const likeSchema = z.object({
   targetUserId: z.string(),
@@ -96,16 +97,27 @@ class MatchService {
   }
 
   async getPotentialMatches(userId, page = 1, limit = 20) {
+    userId = '67fba2230bd55a575feb9864';
     try {
+      console.log('=== getPotentialMatches Debug ===');
+      
+      if (!userId) {
+        console.error('Error: userId is required but not provided');
+        throw new Error('User ID is required');
+      }
+
       const user = await User.findById(userId);
+      
       if (!user) {
+        console.error('Error: User not found with ID:', userId);
         throw new Error('User not found');
       }
 
-      // Get users that haven't been matched or liked yet
       const existingMatches = await Match.find({
         users: userId
       }).select('users');
+
+      console.log('Existing matches count:', existingMatches.length);
 
       const excludedUserIds = [
         userId,
@@ -114,37 +126,42 @@ class MatchService {
         )
       ];
 
-      // Get potential matches based on preferences
-      const query = {
-        _id: { $nin: excludedUserIds },
-        verificationStatus: 'approved'
-      };
+      const users = await User.find({_id: { $nin: excludedUserIds }});
 
-      if (user.preferences) {
-        if (user.preferences.gender) {
-          query.gender = user.preferences.gender;
+      // Generate signed URLs for each user's photos
+      const usersWithSignedPhotos = await Promise.all(users.map(async (user) => {
+        const userObj = user.toObject();
+        if (userObj.photos && userObj.photos.length > 0) {
+          // Extract the key from the full S3 URL for each photo
+          userObj.photos = await Promise.all(userObj.photos.map(async (photoUrl) => {
+            try {
+              // Extract the key from the full URL
+              const key = photoUrl.split('.com/')[1];
+              if (!key) {
+                console.error('Invalid S3 URL format:', photoUrl);
+                return photoUrl;
+              }
+              // Generate signed URL
+              const signedUrl = await generatePresignedUrl(key, 3600); // 1 hour expiration
+              return signedUrl;
+            } catch (error) {
+              console.error('Error generating signed URL:', error);
+              return photoUrl;
+            }
+          }));
         }
-        if (user.preferences.ageRange) {
-          query.age = {
-            $gte: user.preferences.ageRange.min,
-            $lte: user.preferences.ageRange.max
-          };
-        }
-      }
+        return userObj;
+      }));
 
-      const users = await User.find(query)
-        .select('username profilePhotos bio interests')
-        .skip((page - 1) * limit)
-        .limit(limit);
-
-      const total = await User.countDocuments(query);
+      console.log('Found potential matches:', usersWithSignedPhotos.length);
+      console.log('=== End getPotentialMatches Debug ===');
 
       return {
-        users,
+        users: usersWithSignedPhotos,
         page,
-        totalPages: Math.ceil(total / limit)
       };
     } catch (error) {
+      console.error('Error in getPotentialMatches:', error);
       throw new Error('Error getting potential matches');
     }
   }

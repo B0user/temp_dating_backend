@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const User = require('../models/user.model');
 const { z } = require('zod');
 const { uploadToS3, generatePresignedUrl } = require('../utils/s3');
@@ -16,7 +17,7 @@ const registrationSchema = z.object({
   telegramId: z.string(),
   name: z.string(),
   gender: z.enum(['male', 'female', 'other']),
-  wantToFind: z.enum(['male', 'female', 'other']),
+  wantToFind: z.enum(['male', 'female', 'all']),
   birthDay: z.string(),
   country: z.string(),
   city: z.string(),
@@ -75,65 +76,118 @@ class AuthService {
   }
 
   async register(registrationData) {
-    const validatedData = registrationSchema.parse(registrationData);
-    const parsedInterests = JSON.parse(validatedData.interests);
+    try {
+      console.log('=== Auth Service Registration Debug ===');
+      console.log('Raw registration data:', JSON.stringify(registrationData, null, 2));
 
-    // Check if user already exists
-    const existingUser = await User.findOne({ telegramId: validatedData.telegramId });
-    if (existingUser) {
-      throw new Error('User with this Telegram ID already exists');
+      if (!registrationData) {
+        throw new Error('No registration data provided');
+      }
+
+      // Parse interests if it's a string
+      let parsedInterests;
+      if (typeof registrationData.interests === 'string') {
+        try {
+          parsedInterests = JSON.parse(registrationData.interests);
+          console.log('Parsed interests:', parsedInterests);
+        } catch (error) {
+          console.error('Error parsing interests:', error);
+          parsedInterests = [];
+        }
+      } else {
+        parsedInterests = registrationData.interests || [];
+      }
+
+      // Create user data object
+      const userData = {
+        telegramId: registrationData.telegramId,
+        name: registrationData.name,
+        gender: registrationData.gender,
+        wantToFind: registrationData.wantToFind,
+        birthDay: registrationData.birthDay,
+        country: registrationData.country,
+        city: registrationData.city,
+        latitude: parseFloat(registrationData.latitude),
+        longitude: parseFloat(registrationData.longitude),
+        purpose: registrationData.purpose,
+        interests: parsedInterests,
+        photos: [], // We'll handle photo uploads separately
+        audioMessage: null // We'll handle audio upload separately
+      };
+
+      console.log('Processed user data:', JSON.stringify(userData, null, 2));
+
+      // Validate the data
+      try {
+        const validatedData = registrationSchema.parse(userData);
+        console.log('Validated data:', JSON.stringify(validatedData, null, 2));
+      } catch (validationError) {
+        console.error('Validation error:', validationError);
+        throw new Error('Validation failed', { details: validationError.errors });
+      }
+
+      // Check if user already exists
+      const existingUser = await User.findOne({ telegramId: userData.telegramId });
+      if (existingUser) {
+        throw new Error('User with this Telegram ID already exists');
+      }
+
+      // Create new user
+      const user = new User({
+        telegramId: userData.telegramId,
+        name: userData.name,
+        gender: userData.gender,
+        wantToFind: userData.wantToFind,
+        birthDay: userData.birthDay,
+        country: userData.country,
+        city: userData.city,
+        location: {
+          type: 'Point',
+          coordinates: [userData.longitude, userData.latitude]
+        },
+        purpose: userData.purpose,
+        interests: userData.interests,
+        photos: [], // We'll handle photo uploads separately
+        audioMessage: null, // We'll handle audio upload separately
+        isVerified: false
+      });
+
+      console.log('User object to save:', JSON.stringify(user, null, 2));
+      await user.save();
+      console.log('User saved successfully');
+
+      // Handle file uploads
+      if (registrationData.photos && registrationData.photos.length > 0) {
+        console.log('Processing photos...');
+        for (const photo of registrationData.photos) {
+          const photoUrl = await uploadToS3(photo.buffer, photo.originalname, photo.mimetype);
+          user.photos.push(photoUrl);
+        }
+        await user.save();
+        console.log('Photos uploaded successfully');
+      }
+
+      if (registrationData.audioMessage) {
+        console.log('Processing audio message...');
+        const audioUrl = await uploadToS3(
+          registrationData.audioMessage.buffer,
+          registrationData.audioMessage.originalname,
+          registrationData.audioMessage.mimetype
+        );
+        user.audioMessage = audioUrl;
+        await user.save();
+        console.log('Audio message uploaded successfully');
+      }
+
+      const token = this.generateToken(user);
+      return { user, token };
+    } catch (error) {
+      console.error('Registration error:', error);
+      if (error instanceof z.ZodError) {
+        throw new Error('Validation failed', { details: error.errors });
+      }
+      throw error;
     }
-
-    // Handle photo uploads
-    const photoUrls = [];
-    for (let i = 0; i < validatedData.photos.length; i++) {
-      const base64Data = validatedData.photos[i];
-      const fileExtension = 'jpg'; // Assuming all photos are JPEG
-      const key = `users/${validatedData.telegramId}/photos/photo${i + 1}.${fileExtension}`;
-      
-      // Convert base64 to buffer
-      const buffer = Buffer.from(base64Data.replace(/^data:image\/\w+;base64,/, ''), 'base64');
-      const photoUrl = await uploadToS3(buffer, key, 'image/jpeg');
-      photoUrls.push(photoUrl);
-    }
-
-    // Handle audio message upload
-    let audioMessageUrl = null;
-    if (validatedData.audioMessage) {
-      const base64Data = validatedData.audioMessage;
-      const fileExtension = 'mp3'; // Assuming audio is MP3
-      const key = `users/${validatedData.telegramId}/audio/voice.${fileExtension}`;
-      
-      // Convert base64 to buffer
-      const buffer = Buffer.from(base64Data.replace(/^data:audio\/\w+;base64,/, ''), 'base64');
-      audioMessageUrl = await uploadToS3(buffer, key, 'audio/mpeg');
-    }
-
-    // Create new user
-    const user = new User({
-      telegramId: validatedData.telegramId,
-      username: validatedData.name,
-      name: validatedData.name,
-      gender: validatedData.gender,
-      wantToFind: validatedData.wantToFind,
-      birthDay: validatedData.birthDay,
-      country: validatedData.country,
-      city: validatedData.city,
-      location: {
-        type: 'Point',
-        coordinates: [validatedData.longitude, validatedData.latitude]
-      },
-      purpose: validatedData.purpose,
-      interests: parsedInterests,
-      photos: photoUrls,
-      audioMessage: audioMessageUrl,
-      isVerified: false
-    });
-
-    await user.save();
-
-    const token = this.generateToken(user);
-    return { user, token };
   }
 
   async login(telegramId) {
@@ -166,35 +220,45 @@ class AuthService {
     };
   }
 
-  generateToken(user) {
-    return jwt.sign(
-      { id: user._id, telegramId: user.telegramId },
-      process.env.JWT_SECRET,
-      { expiresIn: '30d' }
-    );
-  }
-
-  verifyToken(token) {
-    try {
-      return jwt.verify(token, this.jwtSecret);
-    } catch (error) {
-      throw new Error('Invalid token');
-    }
-  }
-
   async validateUser(token) {
     try {
-      const decoded = this.verifyToken(token);
-      const user = await User.findById(decoded.id);
-      
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const user = await User.findById(decoded.userId);
+
       if (!user) {
         throw new Error('User not found');
       }
 
       return user;
     } catch (error) {
-      throw new Error('Invalid authentication');
+      throw new Error('Invalid token');
     }
+  }
+
+  async generateToken(user) {
+    return jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+    );
+  }
+
+  async hashPassword(password) {
+    return bcrypt.hash(password, 10);
+  }
+
+  async comparePasswords(password, hashedPassword) {
+    return bcrypt.compare(password, hashedPassword);
+  }
+
+  async validateEmail(email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  }
+
+  async validatePassword(password) {
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+    return passwordRegex.test(password);
   }
 }
 

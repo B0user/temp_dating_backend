@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth.middleware');
+const { authMiddleware } = require('../middleware/auth.middleware');
 const Stream = require('../models/stream.model');
 const { z } = require('zod');
 
@@ -13,7 +13,7 @@ const createStreamSchema = z.object({
 });
 
 // Create a new stream
-router.post('/', authenticate, async (req, res) => {
+router.post('/', authMiddleware, async (req, res) => {
   try {
     const validatedData = createStreamSchema.parse(req.body);
     
@@ -33,7 +33,7 @@ router.post('/', authenticate, async (req, res) => {
 });
 
 // Get active streams
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
@@ -57,7 +57,7 @@ router.get('/', authenticate, async (req, res) => {
 });
 
 // Get stream by ID
-router.get('/:streamId', authenticate, async (req, res) => {
+router.get('/:streamId', authMiddleware, async (req, res) => {
   try {
     const stream = await Stream.findById(req.params.streamId)
       .populate('host', 'username profilePhoto')
@@ -74,7 +74,7 @@ router.get('/:streamId', authenticate, async (req, res) => {
 });
 
 // End a stream
-router.post('/:streamId/end', authenticate, async (req, res) => {
+router.post('/:streamId/end', authMiddleware, async (req, res) => {
   try {
     const stream = await Stream.findById(req.params.streamId);
 
@@ -97,7 +97,7 @@ router.post('/:streamId/end', authenticate, async (req, res) => {
 });
 
 // Get user's stream history
-router.get('/user/history', authenticate, async (req, res) => {
+router.get('/user/history', authMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;

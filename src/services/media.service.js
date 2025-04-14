@@ -1,104 +1,78 @@
-const AWS = require('aws-sdk');
 const multer = require('multer');
-const multerS3 = require('multer-s3');
-const { z } = require('zod');
+const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const path = require('path');
+const crypto = require('crypto');
 
-// Configure AWS
-AWS.config.update({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION
-});
-
-const s3 = new AWS.S3();
-
-// Validation schemas
-const imageUploadSchema = z.object({
-  fieldname: z.string(),
-  originalname: z.string(),
-  encoding: z.string(),
-  mimetype: z.string().regex(/^image\//),
-  size: z.number().max(5 * 1024 * 1024), // 5MB max
-  bucket: z.string(),
-  key: z.string(),
-  location: z.string().url(),
-  etag: z.string()
-});
-
-const audioUploadSchema = z.object({
-  fieldname: z.string(),
-  originalname: z.string(),
-  encoding: z.string(),
-  mimetype: z.string().regex(/^audio\//),
-  size: z.number().max(10 * 1024 * 1024), // 10MB max
-  bucket: z.string(),
-  key: z.string(),
-  location: z.string().url(),
-  etag: z.string()
-});
-
-class MediaService {
-  constructor() {
-    this.upload = multer({
-      storage: multerS3({
-        s3: s3,
-        bucket: process.env.S3_BUCKET_NAME,
-        acl: 'public-read',
-        metadata: function (req, file, cb) {
-          cb(null, { fieldName: file.fieldname });
-        },
-        key: function (req, file, cb) {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-          cb(null, `${file.fieldname}/${uniqueSuffix}-${file.originalname}`);
-        }
-      }),
-      fileFilter: this.fileFilter
-    });
+const s3Client = new S3Client({
+  region: process.env.AWS_REGION,
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
   }
+});
 
-  fileFilter(req, file, cb) {
-    // Accept images and audio files
-    if (file.mimetype.startsWith('image/') || file.mimetype.startsWith('audio/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Invalid file type. Only images and audio files are allowed.'));
-    }
-  }
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
+const mediaService = {
+  getUploadMiddleware(fieldName) {
+    return upload.single(fieldName);
+  },
 
   async validateUpload(file, type) {
-    try {
-      if (type === 'image') {
-        return imageUploadSchema.parse(file);
-      } else if (type === 'audio') {
-        return audioUploadSchema.parse(file);
-      }
-      throw new Error('Invalid file type');
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new Error('Invalid file upload');
-      }
-      throw error;
+    if (!file) {
+      throw new Error('No file uploaded');
     }
-  }
 
-  async deleteFile(key) {
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+    const allowedAudioTypes = ['audio/mp3', 'audio/mpeg', 'audio/wav'];
+    const maxSize = 5 * 1024 * 1024; // 5MB
+
+    if (type === 'image' && !allowedImageTypes.includes(file.mimetype)) {
+      throw new Error('Invalid image type. Only JPEG, PNG, and JPG are allowed');
+    }
+
+    if (type === 'audio' && !allowedAudioTypes.includes(file.mimetype)) {
+      throw new Error('Invalid audio type. Only MP3 and WAV are allowed');
+    }
+
+    if (file.size > maxSize) {
+      throw new Error('File size too large. Maximum size is 5MB');
+    }
+
+    const fileName = `${crypto.randomBytes(16).toString('hex')}${path.extname(file.originalname)}`;
+    const uploadParams = {
+      Bucket: process.env.AWS_BUCKET_NAME,
+      Key: fileName,
+      Body: file.buffer,
+      ContentType: file.mimetype
+    };
+
     try {
-      await s3.deleteObject({
-        Bucket: process.env.S3_BUCKET_NAME,
+      await s3Client.send(new PutObjectCommand(uploadParams));
+      const signedUrl = await getSignedUrl(s3Client, new PutObjectCommand(uploadParams), { expiresIn: 3600 });
+      return {
+        location: signedUrl,
+        key: fileName
+      };
+    } catch (error) {
+      throw new Error('Error uploading file to S3');
+    }
+  },
+
+  async deleteFile(fileUrl) {
+    try {
+      const key = fileUrl.split('/').pop();
+      const deleteParams = {
+        Bucket: process.env.AWS_BUCKET_NAME,
         Key: key
-      }).promise();
+      };
+      await s3Client.send(new DeleteObjectCommand(deleteParams));
     } catch (error) {
       throw new Error('Error deleting file from S3');
     }
   }
+};
 
-  getUploadMiddleware(fieldName) {
-    return this.upload.single(fieldName);
-  }
-
-  getMultiUploadMiddleware(fieldName, maxCount) {
-    return this.upload.array(fieldName, maxCount);
-  }
-}
-
-module.exports = new MediaService(); 
+module.exports = mediaService; 

@@ -5,57 +5,62 @@ const userSchema = new Schema({
   telegramId: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    trim: true
   },
   name: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   gender: {
     type: String,
-    enum: ['male', 'female', 'other'],
-    required: true
+    required: true,
+    enum: ['male', 'female', 'other']
   },
   wantToFind: {
     type: String,
-    enum: ['male', 'female', 'other'],
-    required: true
+    required: true,
+    enum: ['male', 'female', 'all']
   },
   birthDay: {
-    type: String,
+    type: Date,
     required: true
   },
   country: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   city: {
     type: String,
+    required: true,
+    trim: true
+  },
+  latitude: {
+    type: Number,
     required: true
   },
-  location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point'
-    },
-    coordinates: {
-      type: [Number],
-      required: true
-    }
+  longitude: {
+    type: Number,
+    required: true
   },
   purpose: {
     type: String,
-    required: true
+    required: true,
+    trim: true
   },
   interests: [{
-    type: String
+    type: String,
+    trim: true
   }],
   photos: [{
-    type: String // S3 keys for photos
+    type: String, // URLs to photos in S3
+    trim: true
   }],
   audioMessage: {
-    type: String // S3 key for audio message
+    type: String, // URL to audio message in S3
+    trim: true
   },
   isVerified: {
     type: Boolean,
@@ -181,7 +186,7 @@ userSchema.methods.isPremium = function() {
 };
 
 // Method to check if user is verified
-userSchema.methods.isVerified = function() {
+userSchema.methods.checkVerificationStatus = function() {
   return this.verification.status === 'approved';
 };
 

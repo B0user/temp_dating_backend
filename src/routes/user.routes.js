@@ -1,9 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth.middleware');
+const { authMiddleware } = require('../middleware/auth.middleware');
 const { isAdmin } = require('../middleware/admin.middleware');
 const User = require('../models/user.model');
+const authService = require('../services/auth.service');
 const { z } = require('zod');
+const multer = require('multer');
+const userController = require('../controllers/user.controller');
 
 // Validation schemas
 const updateProfileSchema = z.object({
@@ -24,8 +27,52 @@ const updateProfileSchema = z.object({
   }).optional()
 });
 
+// Configure multer for memory storage
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images and audio files
+    if (file.fieldname.startsWith('photo')) {
+      if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only image files are allowed for photos!'));
+      }
+    } else if (file.fieldname === 'audioMessage') {
+      if (file.mimetype.startsWith('audio/')) {
+        cb(null, true);
+      } else {
+        cb(new Error('Only audio files are allowed for voice messages!'));
+      }
+    } else {
+      cb(new Error('Unexpected field'));
+    }
+  }
+});
+
+// Register route with file uploads
+router.post('/register', upload.fields([
+  { name: 'photo1', maxCount: 1 },
+  { name: 'photo2', maxCount: 1 },
+  { name: 'photo3', maxCount: 1 },
+  { name: 'photo4', maxCount: 1 },
+  { name: 'audioMessage', maxCount: 1 }
+]), userController.register);
+
+// Login route
+router.post('/login', userController.login);
+
+// Update main user info
+router.put('/mainInfoUpdate', userController.updateMainInfo);
+
+// Delete photo
+router.delete('/photo', userController.deletePhoto);
+
 // Get user profile
-router.get('/profile', authenticate, async (req, res) => {
+router.get('/profile', authMiddleware, async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .select('-password -verification.photo -verification.reviewedBy -verification.reviewedAt');
@@ -41,7 +88,7 @@ router.get('/profile', authenticate, async (req, res) => {
 });
 
 // Update user profile
-router.put('/profile', authenticate, async (req, res) => {
+router.put('/profile', authMiddleware, async (req, res) => {
   try {
     const validatedData = updateProfileSchema.parse(req.body);
     const user = await User.findByIdAndUpdate(
@@ -64,7 +111,7 @@ router.put('/profile', authenticate, async (req, res) => {
 });
 
 // Get user by ID (admin only)
-router.get('/:userId', authenticate, isAdmin, async (req, res) => {
+router.get('/:userId', authMiddleware, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.userId)
       .select('-password');
@@ -80,7 +127,7 @@ router.get('/:userId', authenticate, isAdmin, async (req, res) => {
 });
 
 // Get all users (admin only)
-router.get('/', authenticate, isAdmin, async (req, res) => {
+router.get('/', authMiddleware, isAdmin, async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const skip = (page - 1) * limit;
@@ -104,7 +151,7 @@ router.get('/', authenticate, isAdmin, async (req, res) => {
 });
 
 // Delete user (admin only)
-router.delete('/:userId', authenticate, isAdmin, async (req, res) => {
+router.delete('/:userId', authMiddleware, isAdmin, async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.userId);
     

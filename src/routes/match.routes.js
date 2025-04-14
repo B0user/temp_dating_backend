@@ -4,11 +4,12 @@ const matchService = require('../services/match.service');
 const { authMiddleware } = require('../middleware/auth.middleware');
 
 // Get potential matches
-router.get('/potential', authMiddleware, async (req, res) => {
+router.get('/potential', async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
+    console.log('Potential matches request ');
     const result = await matchService.getPotentialMatches(
-      req.user._id,
+      // req.user._id,
       parseInt(page),
       parseInt(limit)
     );

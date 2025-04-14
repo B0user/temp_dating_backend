@@ -6,8 +6,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
-const Redis = require('ioredis');
-const { createAdapter } = require('@socket.io/redis-adapter');
 
 const app = express();
 const httpServer = createServer(app);
@@ -24,10 +22,6 @@ mongoose.connect(process.env.MONGODB_URI)
   .then(() => console.log('Connected to MongoDB'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// Redis Connection
-const pubClient = new Redis(process.env.REDIS_URL);
-const subClient = pubClient.duplicate();
-
 // Socket.io Setup
 const io = new Server(httpServer, {
   cors: {
@@ -35,8 +29,6 @@ const io = new Server(httpServer, {
     methods: ['GET', 'POST']
   }
 });
-
-io.adapter(createAdapter(pubClient, subClient));
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
