@@ -44,7 +44,7 @@ const moderationRoutes = require('./routes/moderation.routes');
 app.use('/auth', authRoutes);
 app.use('/users', userRoutes);
 app.use('/media', mediaRoutes);
-app.use('/chat', chatRoutes);
+app.use('/chats', chatRoutes);
 app.use('/wallet', walletRoutes);
 app.use('/matches', matchRoutes);
 app.use('/streams', streamRoutes);

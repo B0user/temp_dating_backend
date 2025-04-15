@@ -384,4 +384,182 @@ exports.updateMainInfo = async (req, res) => {
     console.error('Error updating main user information:', error);
     res.status(500).json({ message: 'Error updating main user information' });
   }
+};
+
+exports.updateAudio = async (req, res) => {
+  try {
+    const { telegramId } = req.body;
+    let uploadedAudio = null;
+
+    // Find user by telegramId
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Delete old audio from S3 if exists
+    if (user.audioMessage) {
+      try {
+        await deleteFromS3(user.audioMessage);
+      } catch (error) {
+        console.error('Error deleting old audio:', error);
+      }
+    }
+
+    // Process new audio message if provided
+    if (req.files && req.files.audioMessage && req.files.audioMessage[0]) {
+      try {
+        const audioFile = req.files.audioMessage[0];
+        const key = generateMediaKey(telegramId, 'audio', audioFile.originalname);
+        const url = await uploadToS3(audioFile, key);
+        uploadedAudio = { key, url };
+      } catch (error) {
+        console.error('Error uploading audio message:', error);
+        return res.status(500).json({ message: 'Error uploading audio message' });
+      }
+    }
+
+    // Update user's audio message
+    user.audioMessage = uploadedAudio?.url || null;
+    await user.save();
+
+    // Generate presigned URL for the new audio message
+    let audioMessageUrl = null;
+    if (user.audioMessage) {
+      audioMessageUrl = await generatePresignedUrl(user.audioMessage);
+    }
+
+    res.status(200).json({
+      message: 'Audio message updated successfully',
+      audioMessage: audioMessageUrl
+    });
+  } catch (error) {
+    console.error('Error updating audio:', error);
+    res.status(500).json({ message: 'Error updating audio message' });
+  }
+};
+
+exports.updatePhotos = async (req, res) => {
+  try {
+    const { telegramId } = req.body;
+    let uploadedPhotos = [];
+
+    // Find user by telegramId
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Delete old photos from S3
+    if (user.photos && user.photos.length > 0) {
+      for (const photoKey of user.photos) {
+        try {
+          await deleteFromS3(photoKey);
+        } catch (error) {
+          console.error('Error deleting old photo:', error);
+        }
+      }
+    }
+
+    // Process new photos
+    if (req.files) {
+      for (let i = 1; i <= 4; i++) {
+        const photoFile = req.files[`photo${i}`];
+        if (photoFile && photoFile[0]) {
+          try {
+            const key = generateMediaKey(telegramId, 'photos', photoFile[0].originalname);
+            const url = await uploadToS3(photoFile[0], key);
+            uploadedPhotos.push({ key, url });
+          } catch (error) {
+            console.error(`Error uploading photo${i}:`, error);
+            // Clean up any successfully uploaded photos
+            await cleanupUploads(uploadedPhotos, null);
+            return res.status(500).json({ message: `Error uploading photo${i}` });
+          }
+        }
+      }
+    }
+
+    // Update user's photos
+    user.photos = uploadedPhotos.map(p => p.url);
+    await user.save();
+
+    // Generate presigned URLs for the new photos
+    const photoUrls = await Promise.all(
+      user.photos.map(async (photoKey) => {
+        return await generatePresignedUrl(photoKey);
+      })
+    );
+
+    res.status(200).json({
+      message: 'Photos updated successfully',
+      photos: photoUrls
+    });
+  } catch (error) {
+    console.error('Error updating photos:', error);
+    res.status(500).json({ message: 'Error updating photos' });
+  }
+};
+
+exports.updateInterests = async (req, res) => {
+  try {
+    const { telegramId, interests } = req.body;
+
+    // Find user by telegramId
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Parse interests
+    let parsedInterests = [];
+    try {
+      parsedInterests = Array.isArray(interests) 
+        ? interests 
+        : typeof interests === 'string' 
+          ? interests.split(',').map(i => i.trim()) 
+          : [];
+    } catch (error) {
+      return res.status(400).json({
+        message: 'Invalid interests format',
+        details: 'Interests should be an array or comma-separated string'
+      });
+    }
+
+    // Update user's interests
+    user.interests = parsedInterests;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Interests updated successfully',
+      interests: user.interests
+    });
+  } catch (error) {
+    console.error('Error updating interests:', error);
+    res.status(500).json({ message: 'Error updating interests' });
+  }
+};
+
+exports.updateMeetGoal = async (req, res) => {
+  try {
+    const { telegramId, purpose } = req.body;
+
+    // Find user by telegramId
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user's purpose
+    user.purpose = purpose;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Meet goal updated successfully',
+      purpose: user.purpose
+    });
+  } catch (error) {
+    console.error('Error updating meet goal:', error);
+    res.status(500).json({ message: 'Error updating meet goal' });
+  }
 }; 

@@ -49,11 +49,11 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Like/dislike user
-router.post('/:targetUserId', authMiddleware, async (req, res) => {
+router.post('/:targetUserId', async (req, res) => {
   try {
     const { like } = req.body;
     const match = await matchService.likeUser(
-      req.user._id,
+      req.body.userId,
       req.params.targetUserId,
       like
     );

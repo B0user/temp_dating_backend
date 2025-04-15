@@ -4,10 +4,11 @@ const chatService = require('../services/chat.service');
 const { authMiddleware } = require('../middleware/auth.middleware');
 
 // Get user's chats
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const { page = 1, limit = 20 } = req.query;
-    const result = await chatService.getUserChats(req.user._id, parseInt(page), parseInt(limit));
+    const { page = 1, limit = 20, userId } = req.query;
+    console.log('User ID from query:', userId);
+    const result = await chatService.getUserChats(userId, parseInt(page), parseInt(limit));
 
     res.status(200).json({
       status: 'success',
@@ -27,7 +28,7 @@ router.get('/:chatId', authMiddleware, async (req, res) => {
     const { page = 1, limit = 50 } = req.query;
     const result = await chatService.getChatHistory(
       req.params.chatId,
-      req.user._id,
+      req.body.userId,
       parseInt(page),
       parseInt(limit)
     );
@@ -49,7 +50,7 @@ router.post('/:chatId/messages', authMiddleware, async (req, res) => {
   try {
     const message = await chatService.sendMessage(
       req.params.chatId,
-      req.user._id,
+      req.body.userId,
       req.body
     );
 
@@ -70,7 +71,7 @@ router.post('/:chatId/messages', authMiddleware, async (req, res) => {
 // Mark messages as read
 router.post('/:chatId/read', authMiddleware, async (req, res) => {
   try {
-    await chatService.markAsRead(req.params.chatId, req.user._id);
+    await chatService.markAsRead(req.params.chatId, req.body.userId);
 
     res.status(200).json({
       status: 'success',
@@ -90,7 +91,7 @@ router.post('/:chatId/typing', authMiddleware, async (req, res) => {
     const { isTyping } = req.body;
     const typingStatus = await chatService.updateTypingStatus(
       req.params.chatId,
-      req.user._id,
+      req.body.userId,
       isTyping
     );
 

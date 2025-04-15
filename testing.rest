@@ -1,0 +1,43 @@
+###
+
+### Login as user 2005
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+    "telegramId": "2005"
+}
+
+### Login as user 1001
+POST http://localhost:3001/auth/login
+Content-Type: application/json
+
+{
+    "telegramId": "1001"
+}
+
+### User 2005 likes user 1001
+POST http://localhost:3001/matches/67fba439cf98acec362a6a2f
+Content-Type: application/json
+
+{
+    "like": true,
+    "userId": "67fb77a3f6bcb0df9606437b"
+}
+
+### User 1001 likes user 2005
+POST http://localhost:3001/matches/67fb77a3f6bcb0df9606437b
+Content-Type: application/json
+
+{
+    "like": true,
+    "userId": "67fba439cf98acec362a6a2f"
+}
+
+### Get chats for user 2005
+GET http://localhost:3001/chats?userId=2005
+
+### Get chats for user 1001
+GET http://localhost:3001/chats?userId=1001
+
+###

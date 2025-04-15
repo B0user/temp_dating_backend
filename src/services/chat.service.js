@@ -119,28 +119,44 @@ class ChatService {
 
   async getUserChats(userId, page = 1, limit = 20) {
     try {
+      console.log('Starting getUserChats with userId:', userId);
+      
       const chats = await Chat.find({
-        participants: userId,
+        'participants.userId': userId,
         isActive: true
       })
-        .populate('participants', 'username profilePhotos')
         .populate('lastMessage.sender', 'username')
         .sort({ 'lastMessage.createdAt': -1 })
         .skip((page - 1) * limit)
         .limit(limit);
 
+      console.log('Found populated chats:', chats);
+
+      // Process the chats to ensure we have the correct photo URLs
+      const processedChats = chats.map(chat => {
+        // Find the other participant
+        const otherParticipant = chat.participants.find(p => !p.userId.equals(userId));
+        
+        return {
+          ...chat.toObject(),
+          otherParticipant: otherParticipant || null
+        };
+      });
+
       const total = await Chat.countDocuments({
-        participants: userId,
+        'participants.userId': userId,
         isActive: true
       });
 
       return {
-        chats,
+        chats: processedChats,
         page,
         totalPages: Math.ceil(total / limit)
       };
     } catch (error) {
-      throw new Error('Error fetching user chats');
+      console.error('Error in getUserChats:', error);
+      console.error('Error stack:', error.stack);
+      throw new Error(`Error fetching user chats: ${error.message}`);
     }
   }
 

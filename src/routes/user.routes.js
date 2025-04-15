@@ -68,6 +68,23 @@ router.post('/login', userController.login);
 // Update main user info
 router.put('/mainInfoUpdate', userController.updateMainInfo);
 
+// Update audio message
+router.put('/updateAudio', upload.single('audioMessage'), userController.updateAudio);
+
+// Update photos
+router.put('/updatePhotos', upload.fields([
+    { name: 'photo1', maxCount: 1 },
+    { name: 'photo2', maxCount: 1 },
+    { name: 'photo3', maxCount: 1 },
+    { name: 'photo4', maxCount: 1 }
+]), userController.updatePhotos);
+
+// Update interests
+router.put('/updateInterests', userController.updateInterests);
+
+// Update meet goal
+router.put('/updateMeetGoal', userController.updateMeetGoal);
+
 // Delete photo
 router.delete('/photo', userController.deletePhoto);
 

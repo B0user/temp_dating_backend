@@ -79,20 +79,71 @@ class MatchService {
 
   async createChatForMatch(match) {
     try {
+      console.log('Creating chat for match:', match._id);
+      
       const existingChat = await Chat.findOne({
         match: match._id
       });
 
-      if (!existingChat) {
-        await Chat.create({
-          match: match._id,
-          participants: match.users,
-          messages: [],
-          isActive: true
-        });
+      if (existingChat) {
+        console.log('Chat already exists for this match');
+        return;
       }
+
+      // Get user details for both participants
+      console.log('Fetching user details for participants:', match.users);
+      const [user1, user2] = await Promise.all([
+        User.findById(match.users[0]),
+        User.findById(match.users[1])
+      ]);
+
+      if (!user1 || !user2) {
+        console.error('One or both users not found:', {
+          user1: user1 ? 'found' : 'not found',
+          user2: user2 ? 'found' : 'not found'
+        });
+        throw new Error('One or both users not found');
+      }
+
+      console.log('Creating new chat with participants:', {
+        user1: user1.name,
+        user2: user2.name
+      });
+
+      // Create chat with participant details
+      const newChat = await Chat.create({
+        match: match._id,
+        participants: [
+          {
+            userId: user1._id,
+            username: user1.name,
+            profilePhotos: user1.photos || [],
+            age: user1.age,
+            telegram_id: user1.telegramId,
+            interests: user1.interests || []
+          },
+          {
+            userId: user2._id,
+            username: user2.name,
+            profilePhotos: user2.photos || [],
+            age: user2.age,
+            telegram_id: user2.telegramId,
+            interests: user2.interests || []
+          }
+        ],
+        messages: [],
+        isActive: true
+      });
+
+      console.log('Successfully created chat:', newChat._id);
+      return newChat;
     } catch (error) {
-      throw new Error('Error creating chat for match');
+      console.error('Error creating chat for match:', {
+        matchId: match._id,
+        error: error.message,
+        stack: error.stack
+      });
+      throw new Error(`Error creating chat for match: ${error.message}`);
     }
   }
 

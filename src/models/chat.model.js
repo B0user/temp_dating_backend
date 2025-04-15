@@ -41,12 +41,24 @@ const messageSchema = new Schema({
   timestamps: true
 });
 
-const chatSchema = new Schema({
-  participants: [{
+const participantSchema = new Schema({
+  userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  }],
+  },
+  username: {
+    type: String,
+    required: true
+  },
+  profilePhotos: [String],
+  age: Number,
+  telegram_id: String,
+  interests: [String]
+});
+
+const chatSchema = new Schema({
+  participants: [participantSchema],
   match: {
     type: Schema.Types.ObjectId,
     ref: 'Match',
@@ -81,7 +93,7 @@ chatSchema.pre('save', function(next) {
   if (this.participants.length !== 2) {
     return next(new Error('Chat must have exactly 2 participants'));
   }
-  if (this.participants[0].equals(this.participants[1])) {
+  if (this.participants[0].userId.equals(this.participants[1].userId)) {
     return next(new Error('Cannot create a chat with the same user'));
   }
   next();
