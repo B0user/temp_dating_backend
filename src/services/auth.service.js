@@ -191,32 +191,28 @@ class AuthService {
   }
 
   async login(telegramId) {
+    console.log('Login attempt for telegramId:', telegramId);
     const user = await User.findOne({ telegramId });
     if (!user) {
+      console.error('User not found for telegramId:', telegramId);
       throw new Error('User not found');
     }
 
+    // console.log('User found:', user._id);
+
     // Generate presigned URLs for photos
     const photoUrls = await Promise.all(
-      user.photos.map(async (photoKey) => {
-        return await generatePresignedUrl(photoKey);
-      })
+      user.photos.map(photo => generatePresignedUrl(photo))
     );
+    user.photos = photoUrls;
 
-    // Generate presigned URL for audio message if exists
-    let audioMessageUrl = null;
-    if (user.audioMessage) {
-      audioMessageUrl = await generatePresignedUrl(user.audioMessage);
-    }
+    // Generate JWT token
+    const token = await this.generateToken(user);
+    // console.log('Token generated for user:', user._id);
 
-    const token = this.generateToken(user);
-    return {
-      token,
-      user: {
-        ...user.toObject(),
-        photos: photoUrls,
-        audioMessage: audioMessageUrl
-      }
+    return { 
+      user: user.toObject(), 
+      token 
     };
   }
 
@@ -236,11 +232,19 @@ class AuthService {
   }
 
   async generateToken(user) {
-    return jwt.sign(
+    if (!this.jwtSecret) {
+      console.error('JWT_SECRET is not set in environment variables');
+      throw new Error('JWT_SECRET is not configured');
+    }
+
+    // console.log('Generating token for user:', user._id);
+    const token = jwt.sign(
       { userId: user._id },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
+      this.jwtSecret,
+      { expiresIn: this.jwtExpiresIn || '7d' }
     );
+    // console.log('Token generated successfully');
+    return token;
   }
 
   async hashPassword(password) {

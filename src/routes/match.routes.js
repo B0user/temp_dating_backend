@@ -7,9 +7,18 @@ const { authMiddleware } = require('../middleware/auth.middleware');
 router.get('/potential', async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    console.log('Potential matches request ');
+    const userId = req.headers['x-user-id'];
+    
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required'
+      });
+    }
+
+    console.log('Potential matches request for userId:', userId);
     const result = await matchService.getPotentialMatches(
-      // req.user._id,
+      userId,
       parseInt(page),
       parseInt(limit)
     );

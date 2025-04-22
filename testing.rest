@@ -16,6 +16,14 @@ Content-Type: application/json
     "telegramId": "1001"
 }
 
+### Validate token (replace YOUR_TOKEN with actual token from login response)
+POST http://localhost:3001/auth/validate
+Content-Type: application/json
+
+{
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2ZiNzdhM2Y2YmNiMGRmOTYwNjQzN2IiLCJpYXQiOjE3NDQ4MjEyMjgsImV4cCI6MTc0NTQyNjAyOH0.gnYUjqSJaXmDnVaZ9C97GWCWsiEOZ3r9P8qFKuarF0g"
+}
+
 ### User 2005 likes user 1001
 POST http://localhost:3001/matches/67fba439cf98acec362a6a2f
 Content-Type: application/json

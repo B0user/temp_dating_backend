@@ -15,20 +15,20 @@ const messageSchema = z.object({
 });
 
 class ChatService {
-  async createChat(matchId, participants) {
-    try {
-      const chat = await Chat.create({
-        match: matchId,
-        participants,
-        messages: [],
-        isActive: true
-      });
+  // async createChat(matchId, participants) {
+  //   try {
+  //     const chat = await Chat.create({
+  //       match: matchId,
+  //       participants,
+  //       messages: [],
+  //       isActive: true
+  //     });
 
-      return chat;
-    } catch (error) {
-      throw new Error('Error creating chat');
-    }
-  }
+  //     return chat;
+  //   } catch (error) {
+  //     throw new Error('Error creating chat');
+  //   }
+  // }
 
   async sendMessage(chatId, senderId, messageData) {
     try {
@@ -39,7 +39,9 @@ class ChatService {
         throw new Error('Chat not found');
       }
 
-      if (!chat.participants.includes(senderId)) {
+      // Check if the sender is a participant in the chat
+      const isParticipant = chat.participants.some(p => p.userId.toString() === senderId);
+      if (!isParticipant) {
         throw new Error('User not in chat');
       }
 
@@ -54,7 +56,12 @@ class ChatService {
       chat.lastMessage = message;
       await chat.save();
 
-      return message;
+      return {
+        status: 'success',
+        data: {
+          message
+        }
+      };
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw new Error('Invalid message format');
@@ -89,75 +96,54 @@ class ChatService {
     }
   }
 
-  async getChatHistory(chatId, userId, page = 1, limit = 50) {
+  async getChatHistory(chatId, page = 1, limit = 50) {
     try {
       const chat = await Chat.findById(chatId)
-        .populate('participants', 'username profilePhotos')
-        .populate('messages.sender', 'username profilePhotos');
+        .populate('messages.sender', 'username photos')
+        .sort({ 'messages.timestamp': -1 })
+        .skip((page - 1) * limit)
+        .limit(limit);
 
       if (!chat) {
         throw new Error('Chat not found');
       }
-
-      if (!chat.participants.some(p => p._id.equals(userId))) {
-        throw new Error('User not in chat');
-      }
-
-      const startIndex = (page - 1) * limit;
-      const messages = chat.messages.slice(startIndex, startIndex + limit);
-
-      return {
-        chat,
-        messages,
-        page,
-        totalPages: Math.ceil(chat.messages.length / limit)
-      };
+      return chat;
     } catch (error) {
-      throw new Error('Error fetching chat history');
+      console.error('Error fetching chat history:', error);
+      throw error;
     }
   }
 
   async getUserChats(userId, page = 1, limit = 20) {
     try {
-      console.log('Starting getUserChats with userId:', userId);
-      
       const chats = await Chat.find({
-        'participants.userId': userId,
-        isActive: true
+        'participants.userId': userId
       })
-        .populate('lastMessage.sender', 'username')
-        .sort({ 'lastMessage.createdAt': -1 })
-        .skip((page - 1) * limit)
-        .limit(limit);
+      .populate('participants.userId', 'username photos')
+      .populate('lastMessage.sender', 'username')
+      .sort({ 'lastMessage.createdAt': -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
 
-      console.log('Found populated chats:', chats);
-
-      // Process the chats to ensure we have the correct photo URLs
-      const processedChats = chats.map(chat => {
-        // Find the other participant
-        const otherParticipant = chat.participants.find(p => !p.userId.equals(userId));
-        
-        return {
-          ...chat.toObject(),
-          otherParticipant: otherParticipant || null
-        };
-      });
-
-      const total = await Chat.countDocuments({
-        'participants.userId': userId,
-        isActive: true
-      });
-
-      return {
-        chats: processedChats,
-        page,
-        totalPages: Math.ceil(total / limit)
-      };
+      return chats;
     } catch (error) {
-      console.error('Error in getUserChats:', error);
-      console.error('Error stack:', error.stack);
-      throw new Error(`Error fetching user chats: ${error.message}`);
+      console.error('Error fetching user chats:', error);
+      throw error;
     }
+  }
+
+  calculateAge(dob) {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
   }
 
   async updateTypingStatus(chatId, userId, isTyping) {
@@ -184,9 +170,27 @@ class ChatService {
       }
 
       await chat.save();
+
       return chat.typing;
     } catch (error) {
       throw new Error('Error updating typing status');
+    }
+  }
+
+  async saveMessage(chatId, message) {
+    try {
+      const chat = await Chat.findById(chatId);
+      if (!chat) {
+        throw new Error('Chat not found');
+      }
+
+      chat.messages.push(message);
+      await chat.save();
+
+      return message;
+    } catch (error) {
+      console.error('Error saving message:', error);
+      throw error;
     }
   }
 }

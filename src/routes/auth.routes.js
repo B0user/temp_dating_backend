@@ -42,6 +42,21 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// Validate token
+router.post('/validate', async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: 'Token is required' });
+    }
+
+    const user = await authService.validateUser(token);
+    res.json({ user });
+  } catch (error) {
+    res.status(401).json({ error: error.message });
+  }
+});
+
 // Verify token
 router.get('/verify', authMiddleware, async (req, res) => {
   try {

@@ -93,8 +93,8 @@ class MatchService {
       // Get user details for both participants
       console.log('Fetching user details for participants:', match.users);
       const [user1, user2] = await Promise.all([
-        User.findById(match.users[0]),
-        User.findById(match.users[1])
+        User.findById(match.users[0]).select('name photos birthDay interests audioMessage gender bio country city purpose preferences'),
+        User.findById(match.users[1]).select('name photos birthDay interests audioMessage gender bio country city purpose preferences')
       ]);
 
       if (!user1 || !user2) {
@@ -105,37 +105,67 @@ class MatchService {
         throw new Error('One or both users not found');
       }
 
-      console.log('Creating new chat with participants:', {
-        user1: user1.name,
-        user2: user2.name
-      });
 
-      // Create chat with participant details
+      // Format participant data
+      const formatParticipant = (user) => {
+        if (!user.name) {
+          console.error('User name is missing:', user);
+          throw new Error('User name is required');
+        }
+
+        console.log('Formatting participant:', {
+          _id: user._id,
+          name: user.name,
+          birthDay: user.birthDay,
+          photos: user.photos
+        });
+
+        const participant = {
+          _id: user._id,
+          userId: user._id,  // Required by Chat model
+          username: user.name,
+          photos: user.photos || [],
+          birthDay: user.birthDay,
+          interests: user.interests || [],
+          audioMessage: user.audioMessage || null,
+          gender: user.gender || null,
+          bio: user.bio || null,
+          location: {
+            country: user.country || null,
+            city: user.city || null
+          },
+          purpose: user.purpose || null,
+          preferences: user.preferences || {}
+        };
+
+        console.log('Formatted participant:', participant);
+        return participant;
+      };
+
+      // Create chat with formatted participant details
+      const participants = [
+        formatParticipant(user1),
+        formatParticipant(user2)
+      ];
+
+      console.log('Creating chat with participants:', participants);
+
       const newChat = await Chat.create({
         match: match._id,
-        participants: [
-          {
-            userId: user1._id,
-            username: user1.name,
-            profilePhotos: user1.photos || [],
-            age: user1.age,
-            telegram_id: user1.telegramId,
-            interests: user1.interests || []
-          },
-          {
-            userId: user2._id,
-            username: user2.name,
-            profilePhotos: user2.photos || [],
-            age: user2.age,
-            telegram_id: user2.telegramId,
-            interests: user2.interests || []
-          }
-        ],
+        participants,
         messages: [],
         isActive: true
       });
 
-      console.log('Successfully created chat:', newChat._id);
+      console.log('Successfully created chat:', {
+        chatId: newChat._id,
+        participants: newChat.participants.map(p => ({
+          _id: p._id,
+          userId: p.userId,
+          name: p.username,
+          birthDay: p.birthDay
+        }))
+      });
       return newChat;
     } catch (error) {
       console.error('Error creating chat for match:', {
@@ -147,10 +177,24 @@ class MatchService {
     }
   }
 
+  calculateAge(dob) {
+    if (!dob) return null;
+    const birthDate = new Date(dob);
+    const today = new Date();
+    let age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
+
   async getPotentialMatches(userId, page = 1, limit = 20) {
-    userId = '67fba2230bd55a575feb9864';
     try {
       console.log('=== getPotentialMatches Debug ===');
+      console.log('Using userId:', userId);
       
       if (!userId) {
         console.error('Error: userId is required but not provided');

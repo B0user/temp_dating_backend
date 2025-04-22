@@ -1,12 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const chatController = require('../controllers/chat.controller');
 const chatService = require('../services/chat.service');
-
 const { authMiddleware } = require('../middleware/auth.middleware');
 
 // Get user's chats
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const userId = req.headers['x-user-id'];
@@ -29,6 +27,7 @@ router.get('/:chatId', authMiddleware, async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const userId = req.headers['x-user-id'];
+    console.log('chat history start');
     const result = await chatService.getChatHistory(
       req.params.chatId,
       userId,
@@ -130,13 +129,5 @@ router.post('/:chatId/typing', authMiddleware, async (req, res) => {
     });
   }
 });
-
-// Get chat history
-// router.get('/:chatId/history', chatController.getChatHistory);
-
-// Get user's chats
-// router.get('/user/:userId', chatController.getUserChats);
-
-
 
 module.exports = router; 

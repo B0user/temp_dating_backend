@@ -51,10 +51,31 @@ const participantSchema = new Schema({
     type: String,
     required: true
   },
-  profilePhotos: [String],
-  age: Number,
-  telegram_id: String,
-  interests: [String]
+  photos: [{
+    type: String, // URLs to photos in S3
+    trim: true
+  }],
+  audioMessage: {
+    type: String, // URL to audio message in S3
+    trim: true
+  },
+  birthDay: Date,
+  interests: [String],
+  gender: String,
+  bio: String,
+  location: {
+    country: String,
+    city: String
+  },
+  purpose: String,
+  preferences: {
+    ageRange: {
+      min: Number,
+      max: Number
+    },
+    distance: Number,
+    gender: String
+  }
 });
 
 const chatSchema = new Schema({
@@ -93,7 +114,7 @@ chatSchema.pre('save', function(next) {
   if (this.participants.length !== 2) {
     return next(new Error('Chat must have exactly 2 participants'));
   }
-  if (this.participants[0].userId.equals(this.participants[1].userId)) {
+  if (this.participants[0].userId.toString() === this.participants[1].userId.toString()) {
     return next(new Error('Cannot create a chat with the same user'));
   }
   next();
