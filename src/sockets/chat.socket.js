@@ -1,4 +1,4 @@
-const chatController = require('../controllers/chat.controller');
+const chatService = require('../services/chat.service');
 
 const setupChatSocket = (io) => {
     io.on('connection', (socket) => {
@@ -17,11 +17,18 @@ const setupChatSocket = (io) => {
         // Send message
         socket.on('send-message', async (data) => {
             try {
+                console.log('Received message data:', data);
                 const { chatId, senderId, content } = data;
-                const message = await chatController.sendMessage(chatId, senderId, content);
+                const message = await chatService.sendMessage(chatId, senderId, content);
                 
-                // Emit to all users in the chat room
-                io.to(chatId).emit('new-message', message);
+                // Get updated chat history
+                const chatHistory = await chatService.getChatHistory(chatId);
+                
+                // Emit to all users in the chat room with both message and history
+                io.to(chatId).emit('new-message', {
+                    message: message.data.message,
+                    chatHistory: chatHistory
+                });
             } catch (error) {
                 console.error('Error sending message:', error);
                 socket.emit('error', { message: 'Failed to send message' });
@@ -32,7 +39,7 @@ const setupChatSocket = (io) => {
         socket.on('mark-read', async (data) => {
             try {
                 const { chatId, userId } = data;
-                const chat = await chatController.markMessagesAsRead(chatId, userId);
+                const chat = await chatService.markMessagesAsRead(chatId, userId);
                 
                 // Notify other users in the chat
                 socket.to(chatId).emit('messages-read', { chatId, userId });

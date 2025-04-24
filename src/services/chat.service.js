@@ -30,10 +30,8 @@ class ChatService {
   //   }
   // }
 
-  async sendMessage(chatId, senderId, messageData) {
+  async sendMessage(chatId, senderId, content) {
     try {
-      const validatedData = messageSchema.parse(messageData);
-      
       const chat = await Chat.findById(chatId);
       if (!chat) {
         throw new Error('Chat not found');
@@ -47,8 +45,7 @@ class ChatService {
 
       const message = {
         sender: senderId,
-        content: validatedData.content,
-        media: validatedData.media,
+        content: content,
         readBy: []
       };
 
@@ -63,9 +60,7 @@ class ChatService {
         }
       };
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        throw new Error('Invalid message format');
-      }
+      console.error('Error sending message:', error);
       throw error;
     }
   }
