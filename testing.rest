@@ -21,7 +21,33 @@ POST http://localhost:3001/auth/validate
 Content-Type: application/json
 
 {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2ZiNzdhM2Y2YmNiMGRmOTYwNjQzN2IiLCJpYXQiOjE3NDQ4MjEyMjgsImV4cCI6MTc0NTQyNjAyOH0.gnYUjqSJaXmDnVaZ9C97GWCWsiEOZ3r9P8qFKuarF0g"
+    "token": "YOUR_TOKEN"
+}
+
+### Get potential matches for user (with default preferences)
+GET http://localhost:3001/matches/potential
+Content-Type: application/json
+x-user-id: 67fba439cf98acec362a6a2f
+
+### Get potential matches with pagination
+GET http://localhost:3001/matches/potential?page=2&limit=10
+Content-Type: application/json
+x-user-id: 67fba439cf98acec362a6a2f
+
+### Get potential matches with specific preferences (example)
+GET http://localhost:3001/matches/potential
+Content-Type: application/json
+x-user-id: 67fba439cf98acec362a6a2f
+
+{
+    "preferences": {
+        "ageRange": {
+            "min": 25,
+            "max": 35
+        },
+        "distance": 50,
+        "gender": "female"
+    }
 }
 
 ### User 2005 likes user 1001

@@ -3,6 +3,7 @@ const User = require('../models/user.model');
 const Chat = require('../models/chat.model');
 const { z } = require('zod');
 const { generatePresignedUrl } = require('../utils/s3');
+const mongoose = require('mongoose');
 
 const likeSchema = z.object({
   targetUserId: z.string(),
@@ -201,7 +202,17 @@ class MatchService {
         throw new Error('User ID is required');
       }
 
-      const user = await User.findById(userId);
+      // Ensure userId is a valid ObjectId
+      if (!mongoose.Types.ObjectId.isValid(userId)) {
+        console.error('Invalid user ID format:', userId);
+        console.error('Expected 24-character hex string, got:', userId.length, 'characters');
+        throw new Error(`Invalid user ID format. Expected 24-character hex string, got ${userId.length} characters`);
+      }
+
+      // Convert string to ObjectId
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+      
+      const user = await User.findById(userObjectId);
       
       if (!user) {
         console.error('Error: User not found with ID:', userId);
@@ -209,35 +220,67 @@ class MatchService {
       }
 
       const existingMatches = await Match.find({
-        users: userId
+        users: userObjectId
       }).select('users');
 
       console.log('Existing matches count:', existingMatches.length);
 
       const excludedUserIds = [
-        userId,
+        userObjectId,
         ...existingMatches.map(match => 
-          match.users.find(id => !id.equals(userId))
+          match.users.find(id => !id.equals(userObjectId))
         )
       ];
 
-      const users = await User.find({_id: { $nin: excludedUserIds }});
+      // Build query based on user preferences
+      const query = {
+        _id: { $nin: excludedUserIds },
+        gender: user.wantToFind === 'all' ? { $in: ['male', 'female'] } : user.wantToFind,
+        birthDay: {
+          $lte: new Date(new Date().setFullYear(new Date().getFullYear() - user.preferences.ageRange.min)),
+          $gte: new Date(new Date().setFullYear(new Date().getFullYear() - user.preferences.ageRange.max))
+        }
+      };
+
+      // Add distance filter if location is available
+      if (user.latitude && user.longitude) {
+        query.location = {
+          $geoWithin: {
+            $centerSphere: [
+              [user.longitude, user.latitude],
+              user.preferences.distance / 6378.1 // Convert km to radians
+            ]
+          }
+        };
+      }
+
+      // Add gender preference filter
+      if (user.preferences.gender !== 'other') {
+        query.gender = user.preferences.gender;
+      }
+
+      console.log('Query for potential matches:', JSON.stringify(query, null, 2));
+
+      // First get total count
+      const total = await User.countDocuments(query);
+
+      // Then get paginated results
+      const users = await User.find(query)
+        .skip((page - 1) * limit)
+        .limit(limit);
 
       // Generate signed URLs for each user's photos
       const usersWithSignedPhotos = await Promise.all(users.map(async (user) => {
         const userObj = user.toObject();
         if (userObj.photos && userObj.photos.length > 0) {
-          // Extract the key from the full S3 URL for each photo
           userObj.photos = await Promise.all(userObj.photos.map(async (photoUrl) => {
             try {
-              // Extract the key from the full URL
               const key = photoUrl.split('.com/')[1];
               if (!key) {
                 console.error('Invalid S3 URL format:', photoUrl);
                 return photoUrl;
               }
-              // Generate signed URL
-              const signedUrl = await generatePresignedUrl(key, 3600); // 1 hour expiration
+              const signedUrl = await generatePresignedUrl(key, 3600);
               return signedUrl;
             } catch (error) {
               console.error('Error generating signed URL:', error);
@@ -254,10 +297,12 @@ class MatchService {
       return {
         users: usersWithSignedPhotos,
         page,
+        total,
+        totalPages: Math.ceil(total / limit)
       };
     } catch (error) {
       console.error('Error in getPotentialMatches:', error);
-      throw new Error('Error getting potential matches');
+      throw error; // Re-throw the original error to preserve the error message
     }
   }
 

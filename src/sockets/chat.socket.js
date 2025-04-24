@@ -2,13 +2,13 @@ const chatService = require('../services/chat.service');
 
 const setupChatSocket = (io) => {
     io.on('connection', (socket) => {
-        console.log('User connected:', socket.id);
+        // console.log('User connected:', socket.id);
 
         // Join chat room
         socket.on('join-chat', async (chatId) => {
             try {
                 socket.join(chatId);
-                console.log(`User ${socket.id} joined chat ${chatId}`);
+                // console.log(`User ${socket.id} joined chat ${chatId}`);
             } catch (error) {
                 console.error('Error joining chat:', error);
             }
@@ -17,7 +17,6 @@ const setupChatSocket = (io) => {
         // Send message
         socket.on('send-message', async (data) => {
             try {
-                console.log('Received message data:', data);
                 const { chatId, senderId, content } = data;
                 const message = await chatService.sendMessage(chatId, senderId, content);
                 
@@ -50,7 +49,7 @@ const setupChatSocket = (io) => {
 
         // Handle disconnection
         socket.on('disconnect', () => {
-            console.log('User disconnected:', socket.id);
+            // console.log('User disconnected:', socket.id);
         });
     });
 };
