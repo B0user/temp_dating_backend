@@ -1,12 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const chatController = require('../controllers/chat.controller');
 const chatService = require('../services/chat.service');
 
-const { authMiddleware } = require('../middleware/auth.middleware');
-
 // Get user's chats
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
     const userId = req.headers['x-user-id'];
@@ -25,7 +22,7 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Get chat history
-router.get('/:chatId', authMiddleware, async (req, res) => {
+router.get('/:chatId', async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
     const userId = req.headers['x-user-id'];
@@ -49,7 +46,7 @@ router.get('/:chatId', authMiddleware, async (req, res) => {
 });
 
 // Send message
-router.post('/:chatId/messages', authMiddleware, async (req, res) => {
+router.post('/:chatId/messages', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     const message = await chatService.sendMessage(
@@ -73,7 +70,7 @@ router.post('/:chatId/messages', authMiddleware, async (req, res) => {
 });
 
 // Mark messages as read
-router.post('/:chatId/read', authMiddleware, async (req, res) => {
+router.post('/:chatId/read', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     
@@ -99,7 +96,7 @@ router.post('/:chatId/read', authMiddleware, async (req, res) => {
 });
 
 // Update typing status
-router.post('/:chatId/typing', authMiddleware, async (req, res) => {
+router.post('/:chatId/typing', async (req, res) => {
   try {
     const userId = req.headers['x-user-id'];
     

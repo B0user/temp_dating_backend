@@ -56,6 +56,8 @@ const uploadToS3 = async (file, key) => {
       ContentType: file.mimetype
     });
 
+    console.log("COMMAND TO S3 ",command);
+
     await s3Client.send(command);
     logger.info(`File uploaded successfully to S3: ${key}`);
     
@@ -88,7 +90,7 @@ const generatePresignedUrl = async (key, expiresIn = 3600) => {
     });
     
     const url = await getSignedUrl(s3Client, command, { expiresIn });
-    // logger.info(`Generated presigned URL for: ${key}`);
+    logger.info(`Generated presigned URL for: ${key}`);
     return url;
   } catch (error) {
     logger.error('Error generating presigned URL:', error);

@@ -1,25 +1,7 @@
-const multer = require('multer');
-const { S3Client, PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-const path = require('path');
-const crypto = require('crypto');
-
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  }
-});
-
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
+const { uploadToS3, generatePresignedUrl, deleteFromS3, generateMediaKey } = require('../utils/s3');
+const logger = require('../utils/logger');
 
 const mediaService = {
-  getUploadMiddleware(fieldName) {
-    return upload.single(fieldName);
-  },
-
   async validateUpload(file, type) {
     if (!file) {
       throw new Error('No file uploaded');
@@ -41,36 +23,66 @@ const mediaService = {
       throw new Error('File size too large. Maximum size is 5MB');
     }
 
-    const fileName = `${crypto.randomBytes(16).toString('hex')}${path.extname(file.originalname)}`;
-    const uploadParams = {
-      Bucket: process.env.AWS_BUCKET_NAME,
-      Key: fileName,
-      Body: file.buffer,
-      ContentType: file.mimetype
-    };
+    return true;
+  },
 
+  async uploadFile(file, userId, type) {
     try {
-      await s3Client.send(new PutObjectCommand(uploadParams));
-      const signedUrl = await getSignedUrl(s3Client, new PutObjectCommand(uploadParams), { expiresIn: 3600 });
+      await this.validateUpload(file, type);
+      
+      const key = generateMediaKey(userId, type, file.originalname);
+      const url = await uploadToS3(file, key);
+      
       return {
-        location: signedUrl,
-        key: fileName
+        key,
+        url
       };
     } catch (error) {
-      throw new Error('Error uploading file to S3');
+      logger.error(`Error uploading ${type}:`, error);
+      throw error;
     }
   },
 
-  async deleteFile(fileUrl) {
+  async uploadPhotos(files, userId) {
     try {
-      const key = fileUrl.split('/').pop();
-      const deleteParams = {
-        Bucket: process.env.AWS_BUCKET_NAME,
-        Key: key
-      };
-      await s3Client.send(new DeleteObjectCommand(deleteParams));
+      const uploadPromises = files.map(file => 
+        this.uploadFile(file, userId, 'photos')
+      );
+      
+      const results = await Promise.all(uploadPromises);
+      return results;
     } catch (error) {
-      throw new Error('Error deleting file from S3');
+      logger.error('Error uploading photos:', error);
+      throw error;
+    }
+  },
+
+  async uploadAudio(file, userId) {
+    try {
+      const result = await this.uploadFile(file, userId, 'audio');
+      return result;
+    } catch (error) {
+      logger.error('Error uploading audio:', error);
+      throw error;
+    }
+  },
+
+  async deleteFile(key) {
+    try {
+      await deleteFromS3(key);
+      return true;
+    } catch (error) {
+      logger.error('Error deleting file:', error);
+      throw error;
+    }
+  },
+
+  async getSignedUrl(key) {
+    try {
+      return await generatePresignedUrl(key);
+    } catch (error) {
+      logger.error('Error generating signed URL:', error);
+      throw error;
     }
   }
 };

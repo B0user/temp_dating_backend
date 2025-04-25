@@ -2,6 +2,26 @@ const User = require('../models/user.model');
 const { uploadToS3, generatePresignedUrl, deleteFromS3, generateMediaKey } = require('../utils/s3');
 const { generateToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
+const { z } = require('zod');
+
+// Validation schemas
+const updateProfileSchema = z.object({
+  username: z.string().min(3).max(30).optional(),
+  bio: z.string().max(500).optional(),
+  interests: z.array(z.string()).optional(),
+  location: z.object({
+    type: z.literal('Point'),
+    coordinates: z.array(z.number()).length(2)
+  }).optional(),
+  preferences: z.object({
+    ageRange: z.object({
+      min: z.number().min(18).max(100),
+      max: z.number().min(18).max(100)
+    }).optional(),
+    distance: z.number().min(1).max(100).optional(),
+    gender: z.enum(['male', 'female', 'other']).optional()
+  }).optional()
+});
 
 exports.register = async (req, res) => {
   let uploadedPhotos = [];
@@ -450,6 +470,8 @@ exports.updatePhotos = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    console.log("before delete");
+
     // Delete old photos from S3
     if (user.photos && user.photos.length > 0) {
       for (const photoKey of user.photos) {
@@ -460,6 +482,8 @@ exports.updatePhotos = async (req, res) => {
         }
       }
     }
+    console.log("after delete");
+    console.log("before new upload");
 
     // Process new photos
     if (req.files) {
@@ -479,6 +503,7 @@ exports.updatePhotos = async (req, res) => {
         }
       }
     }
+    console.log("after new upload ");
 
     // Update user's photos
     user.photos = uploadedPhotos.map(p => p.url);
@@ -561,5 +586,156 @@ exports.updateMeetGoal = async (req, res) => {
   } catch (error) {
     console.error('Error updating meet goal:', error);
     res.status(500).json({ message: 'Error updating meet goal' });
+  }
+};
+
+exports.getProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id)
+      .select('-password -verification.photo -verification.reviewedBy -verification.reviewedAt');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate signed URLs for photos
+    const photosWithSignedUrls = await Promise.all(
+      user.photos.map(async (photo) => {
+        const signedUrl = await generatePresignedUrl(photo);
+        return signedUrl;
+      })
+    );
+
+    // Generate signed URL for audio message if exists
+    let audioMessageSignedUrl = null;
+    if (user.audioMessage) {
+      audioMessageSignedUrl = await generatePresignedUrl(user.audioMessage);
+    }
+
+    res.json({
+      ...user.toObject(),
+      photos: photosWithSignedUrls,
+      audioMessage: audioMessageSignedUrl
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.updateProfile = async (req, res) => {
+  try {
+    const validatedData = updateProfileSchema.parse(req.body);
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: validatedData },
+      { new: true, runValidators: true }
+    ).select('-password -verification.photo -verification.reviewedBy -verification.reviewedAt');
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ error: error.errors });
+    }
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getUserById = async (req, res) => {
+  try {
+    const user = await User.findById(req.params.userId)
+      .select('-password');
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate signed URLs for photos
+    const photosWithSignedUrls = await Promise.all(
+      user.photos.map(async (photo) => {
+        const signedUrl = await generatePresignedUrl(photo);
+        return signedUrl;
+      })
+    );
+
+    // Generate signed URL for audio message if exists
+    let audioMessageSignedUrl = null;
+    if (user.audioMessage) {
+      audioMessageSignedUrl = await generatePresignedUrl(user.audioMessage);
+    }
+
+    const result = {
+      ...user.toObject(),
+      photos: photosWithSignedUrls,
+      audioMessage: audioMessageSignedUrl
+    };
+
+    console.log(result);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getAllUsers = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    const users = await User.find()
+      .select('-password')
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    // Generate signed URLs for all users' photos and audio messages
+    const usersWithSignedUrls = await Promise.all(
+      users.map(async (user) => {
+        const photosWithSignedUrls = await Promise.all(
+          user.photos.map(async (photo) => {
+            const signedUrl = await generatePresignedUrl(photo);
+            return signedUrl;
+          })
+        );
+
+        let audioMessageSignedUrl = null;
+        if (user.audioMessage) {
+          audioMessageSignedUrl = await generatePresignedUrl(user.audioMessage);
+        }
+
+        return {
+          ...user.toObject(),
+          photos: photosWithSignedUrls,
+          audioMessage: audioMessageSignedUrl
+        };
+      })
+    );
+
+    const total = await User.countDocuments();
+
+    res.json({
+      users: usersWithSignedUrls,
+      total,
+      pages: Math.ceil(total / limit)
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+exports.deleteUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.userId);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
   }
 }; 
