@@ -1,5 +1,103 @@
 ###
 
+### Register user (JSON format)
+POST http://localhost:3001/auth/register
+Content-Type: application/json
+
+{
+    "telegramId": "123456789",
+    "name": "Test User",
+    "gender": "male",
+    "wantToFind": "female",
+    "birthDay": "1990-01-01T00:00:00.000Z",
+    "country": "Russia",
+    "city": "Moscow",
+    "latitude": 55.7558,
+    "longitude": 37.6173,
+    "purpose": "Looking for a relationship",
+    "interests": ["sports", "music", "travel"],
+    "photos": [],
+    "audioMessage": null,
+    "isVerified": false,
+    "verification": {
+        "photo": null,
+        "status": "pending",
+        "reviewedBy": null,
+        "reviewedAt": null,
+        "reason": null
+    },
+    "wallet": {
+        "balance": 0,
+        "transactions": [],
+        "subscription": {
+            "type": "free",
+            "expiresAt": "2024-12-31T00:00:00.000Z"
+        }
+    },
+    "preferences": {
+        "ageRange": {
+            "min": 20,
+            "max": 35
+        },
+        "distance": 100,
+        "gender": "female"
+    }
+}
+
+### Register user (FormData format)
+POST http://localhost:3001/auth/register
+Content-Type: multipart/form-data
+
+--boundary
+Content-Disposition: form-data; name="telegramId"
+
+123456789
+--boundary
+Content-Disposition: form-data; name="name"
+
+Test User
+--boundary
+Content-Disposition: form-data; name="gender"
+
+male
+--boundary
+Content-Disposition: form-data; name="wantToFind"
+
+female
+--boundary
+Content-Disposition: form-data; name="birthDay"
+
+1990-01-01T00:00:00.000Z
+--boundary
+Content-Disposition: form-data; name="country"
+
+Russia
+--boundary
+Content-Disposition: form-data; name="city"
+
+Moscow
+--boundary
+Content-Disposition: form-data; name="latitude"
+
+55.7558
+--boundary
+Content-Disposition: form-data; name="longitude"
+
+37.6173
+--boundary
+Content-Disposition: form-data; name="purpose"
+
+Looking for a relationship
+--boundary
+Content-Disposition: form-data; name="interests"
+
+["sports", "music", "travel"]
+--boundary
+Content-Disposition: form-data; name="preferences"
+
+{"ageRange":{"min":20,"max":35},"distance":100,"gender":"female"}
+--boundary--
+
 ### Login as user 2005
 POST http://localhost:3001/auth/login
 Content-Type: application/json

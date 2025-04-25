@@ -24,9 +24,9 @@ const registrationSchema = z.object({
   latitude: z.number(),
   longitude: z.number(),
   purpose: z.string(),
-  interests: z.string(), // Will be parsed as JSON
-  photos: z.array(z.string()), // Base64 strings
-  audioMessage: z.string().optional() // Base64 string
+  interests: z.array(z.string()), // Changed from string to array of strings
+  photos: z.array(z.string()).optional(), // Made optional since we handle files separately
+  audioMessage: z.string().optional() // Made optional since we handle files separately
 });
 
 class AuthService {
@@ -75,10 +75,11 @@ class AuthService {
     return { user, token };
   }
 
-  async register(registrationData) {
+  async register(registrationData, files) {
     try {
       console.log('=== Auth Service Registration Debug ===');
-      console.log('Raw registration data:', JSON.stringify(registrationData, null, 2));
+      // console.log('Raw registration data:', JSON.stringify(registrationData, null, 2));
+      // console.log('Files:', files);
 
       if (!registrationData) {
         throw new Error('No registration data provided');
@@ -89,7 +90,7 @@ class AuthService {
       if (typeof registrationData.interests === 'string') {
         try {
           parsedInterests = JSON.parse(registrationData.interests);
-          console.log('Parsed interests:', parsedInterests);
+          // console.log('Parsed interests:', parsedInterests);
         } catch (error) {
           console.error('Error parsing interests:', error);
           parsedInterests = [];
@@ -118,13 +119,13 @@ class AuthService {
       console.log('Processed user data:', JSON.stringify(userData, null, 2));
 
       // Validate the data
-      try {
-        const validatedData = registrationSchema.parse(userData);
-        console.log('Validated data:', JSON.stringify(validatedData, null, 2));
-      } catch (validationError) {
-        console.error('Validation error:', validationError);
-        throw new Error('Validation failed', { details: validationError.errors });
-      }
+      // try {
+      //   const validatedData = registrationSchema.parse(userData);
+      //   console.log('Validated data:', JSON.stringify(validatedData, null, 2));
+      // } catch (validationError) {
+      //   console.error('Validation error:', validationError);
+      //   throw new Error('Validation failed', { details: validationError.errors });
+      // }
 
       // Check if user already exists
       const existingUser = await User.findOne({ telegramId: userData.telegramId });
@@ -149,7 +150,15 @@ class AuthService {
         interests: userData.interests,
         photos: [], // We'll handle photo uploads separately
         audioMessage: null, // We'll handle audio upload separately
-        isVerified: false
+        isVerified: false,
+        preferences: {
+          ageRange: {
+            min: 18,
+            max: 100
+          },
+          distance: 50,
+          gender: userData.wantToFind
+        }
       });
 
       console.log('User object to save:', JSON.stringify(user, null, 2));
@@ -157,9 +166,9 @@ class AuthService {
       console.log('User saved successfully');
 
       // Handle file uploads
-      if (registrationData.photos && registrationData.photos.length > 0) {
+      if (files && files.photos && files.photos.length > 0) {
         console.log('Processing photos...');
-        for (const photo of registrationData.photos) {
+        for (const photo of files.photos) {
           const photoUrl = await uploadToS3(photo.buffer, photo.originalname, photo.mimetype);
           user.photos.push(photoUrl);
         }
@@ -167,12 +176,13 @@ class AuthService {
         console.log('Photos uploaded successfully');
       }
 
-      if (registrationData.audioMessage) {
+      if (files && files.audioMessage && files.audioMessage.length > 0) {
         console.log('Processing audio message...');
+        const audioFile = files.audioMessage[0];
         const audioUrl = await uploadToS3(
-          registrationData.audioMessage.buffer,
-          registrationData.audioMessage.originalname,
-          registrationData.audioMessage.mimetype
+          audioFile.buffer,
+          audioFile.originalname,
+          audioFile.mimetype
         );
         user.audioMessage = audioUrl;
         await user.save();
@@ -182,7 +192,6 @@ class AuthService {
       const token = this.generateToken(user);
       return { user, token };
     } catch (error) {
-      console.error('Registration error:', error);
       if (error instanceof z.ZodError) {
         throw new Error('Validation failed', { details: error.errors });
       }

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const authService = require('../services/auth.service');
 const { authMiddleware } = require('../middleware/auth.middleware');
+const z = require('zod');
 
 // Telegram login
 router.post('/telegram', async (req, res) => {
@@ -16,11 +17,29 @@ router.post('/telegram', async (req, res) => {
 // Register user
 router.post('/register', async (req, res) => {
   try {
-    const { user, token } = await authService.register(req.body);
+    // console.log('Request body:', req.body);
+    // console.log('Request files:', req.files);
+    
+    // Check if request body is empty or only contains empty values
+    if (!req.body || Object.keys(req.body).length === 0) {
+      console.log('Empty request body detected');
+      return res.status(400).json({ 
+        error: 'Empty request body',
+        message: 'No registration data provided'
+      });
+    }
+
+    const { user, token } = await authService.register(req.body, req.files);
     res.status(201).json({ user, token });
   } catch (error) {
+    console.error('Registration error:', error);
     if (error.message === 'User with this Telegram ID already exists') {
-      res.status(400).json({ error: error.message });
+      res.status(409).json({ error: error.message });
+    } else if (error instanceof z.ZodError) {
+      res.status(400).json({ 
+        error: 'Validation failed',
+        details: error.errors 
+      });
     } else {
       res.status(500).json({ error: error.message });
     }
