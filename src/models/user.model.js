@@ -4,53 +4,53 @@ const { Schema } = mongoose;
 const userSchema = new Schema({
   telegramId: {
     type: String,
-    required: true,
+    // required: true,
     unique: true,
     trim: true
   },
   name: {
     type: String,
-    required: true,
+    // required: true,
     trim: true
   },
   gender: {
     type: String,
-    required: true,
-    enum: ['male', 'female', 'other']
+    // required: true,
+    // enum: ['male', 'female', 'other']
   },
   wantToFind: {
     type: String,
-    required: true,
-    enum: ['male', 'female', 'all']
+    // required: true,
+    // enum: ['male', 'female', 'all']
   },
   birthDay: {
     type: Date,
-    required: true
+    // required: true
   },
   country: {
     type: String,
-    required: true,
+    // required: true,
     trim: true
   },
   city: {
     type: String,
-    required: true,
+    // required: true,
     trim: true
   },
   location: {
     type: {
       type: String,
-      enum: ['Point'],
-      required: true
+      // enum: ['Point'],
+      // required: true
     },
     coordinates: {
       type: [Number],
-      required: true
+      // required: true
     }
   },
   purpose: {
     type: String,
-    required: true,
+    // required: true,
     trim: true
   },
   interests: [{
@@ -76,7 +76,7 @@ const userSchema = new Schema({
     },
     status: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      // enum: ['pending', 'approved', 'rejected'],
       default: 'pending'
     },
     reviewedBy: {
@@ -94,23 +94,32 @@ const userSchema = new Schema({
     }
   },
   wallet: {
-    balance: {
+    coins: {
+      type: Number,
+      default: 0
+    },
+    mytaCoins: {
       type: Number,
       default: 0
     },
     transactions: [{
       type: {
         type: String,
-        enum: ['deposit', 'withdrawal', 'subscription', 'gift'],
-        required: true
+        // enum: ['deposit', 'withdrawal', 'subscription', 'gift'],
+        // required: true
       },
       amount: {
         type: Number,
-        required: true
+        // required: true
+      },
+      currency: {
+        type: String,
+        // enum: ['coins', 'mytaCoins'],
+        // required: true
       },
       status: {
         type: String,
-        enum: ['pending', 'completed', 'failed'],
+        // enum: ['pending', 'completed', 'failed'],
         default: 'pending'
       },
       createdAt: {
@@ -121,7 +130,7 @@ const userSchema = new Schema({
     subscription: {
       type: {
         type: String,
-        enum: ['free', 'premium', 'vip'],
+        // enum: ['free', 'premium'],
         default: 'free'
       },
       expiresAt: {
@@ -147,7 +156,7 @@ const userSchema = new Schema({
     },
     gender: {
       type: String,
-      enum: ['male', 'female', 'other'],
+      enum: ['male', 'female', 'all'],
       default: 'other'
     }
   },

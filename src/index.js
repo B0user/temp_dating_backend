@@ -65,7 +65,7 @@ app.use('/chats', chatRoutes);
 app.use('/matches', matchRoutes);
 
 // app.use('/media', mediaRoutes);
-// app.use('/wallet', walletRoutes);
+app.use('/wallet', walletRoutes);
 // app.use('/streams', streamRoutes);
 // app.use('/moderation', moderationRoutes);
 

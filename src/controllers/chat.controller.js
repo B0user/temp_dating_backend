@@ -1,76 +1,122 @@
 const chatService = require('../services/chat.service');
 
-const getChatHistory = async (req, res) => {
-    try {
-        const { chatId } = req.params;
-        const { page = 1, limit = 50 } = req.query;
-        
-        const messages = await chatService.getChatHistory(chatId, page, limit);
-        res.json({ status: 'success', data: messages });
-    } catch (error) {
-        console.error('Error in getChatHistory:', error);
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+exports.getUserChats = async (req, res) => {
+  try {
+    const { page = 1, limit = 20 } = req.query;
+    const userId = req.headers['x-user-id'];
+    const result = await chatService.getUserChats(userId, parseInt(page), parseInt(limit));
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
 };
 
-const getUserChats = async (req, res) => {
-    try {
-        const { userId } = req.params;
-        const { page = 1, limit = 20 } = req.query;
-        
-        const chats = await chatService.getUserChats(userId, page, limit);
-        res.json({ status: 'success', data: chats });
-    } catch (error) {
-        console.error('Error in getUserChats:', error);
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+exports.getChatHistory = async (req, res) => {
+  try {
+    const { page = 1, limit = 50 } = req.query;
+    const userId = req.headers['x-user-id'];
+    const result = await chatService.getChatHistory(
+      req.params.chatId,
+      userId,
+      parseInt(page),
+      parseInt(limit)
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
 };
 
-const sendMessage = async (req, res) => {
-    try {
-        const { chatId } = req.params;
-        const { content, media } = req.body;
-        const senderId = req.user._id; // Assuming user is attached to request by auth middleware
+exports.sendMessage = async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    const message = await chatService.sendMessage(
+      req.params.chatId,
+      userId,
+      req.body
+    );
 
-        const message = await chatService.sendMessage(chatId, senderId, { content, media });
-        res.json({ status: 'success', data: message });
-    } catch (error) {
-        console.error('Error in sendMessage:', error);
-        res.status(500).json({ status: 'error', message: error.message });
-    }
+    res.status(200).json({
+      status: 'success',
+      data: {
+        message
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
 };
 
-const markMessagesAsRead = async (req, res) => {
-    try {
-        const { chatId } = req.params;
-        const userId = req.user._id; // Assuming user is attached to request by auth middleware
-
-        await chatService.markAsRead(chatId, userId);
-        res.json({ status: 'success', message: 'Messages marked as read' });
-    } catch (error) {
-        console.error('Error in markMessagesAsRead:', error);
-        res.status(500).json({ status: 'error', message: error.message });
+exports.markAsRead = async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required'
+      });
     }
+
+    await chatService.markAsRead(req.params.chatId, userId);
+
+    res.status(200).json({
+      status: 'success',
+      message: 'Messages marked as read'
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
 };
 
-const updateTypingStatus = async (req, res) => {
-    try {
-        const { chatId } = req.params;
-        const { isTyping } = req.body;
-        const userId = req.user._id;
-
-        const typingStatus = await chatService.updateTypingStatus(chatId, userId, isTyping);
-        res.json({ status: 'success', data: typingStatus });
-    } catch (error) {
-        console.error('Error in updateTypingStatus:', error);
-        res.status(500).json({ status: 'error', message: error.message });
+exports.updateTypingStatus = async (req, res) => {
+  try {
+    const userId = req.headers['x-user-id'];
+    
+    if (!userId) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'User ID is required'
+      });
     }
-};
 
-module.exports = {
-    getChatHistory,
-    getUserChats,
-    sendMessage,
-    markMessagesAsRead,
-    updateTypingStatus
-}; 
+    const { isTyping } = req.body;
+    const typingStatus = await chatService.updateTypingStatus(
+      req.params.chatId,
+      userId,
+      isTyping
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        typing: typingStatus
+      }
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};

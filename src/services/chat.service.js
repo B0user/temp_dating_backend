@@ -1,6 +1,9 @@
 const Chat = require('../models/chat.model');
 const User = require('../models/user.model');
 const { z } = require('zod');
+const { generatePresignedUrl } = require('../utils/s3');
+const logger = require('../utils/logger');
+const userService = require('./user.service');
 
 const messageSchema = z.object({
   content: z.string().optional(),
@@ -94,7 +97,6 @@ class ChatService {
   async getChatHistory(chatId, page = 1, limit = 50) {
     try {
       const chat = await Chat.findById(chatId)
-        .populate('messages.sender', 'username photos')
         .sort({ 'messages.timestamp': -1 })
         .skip((page - 1) * limit)
         .limit(limit);
@@ -102,27 +104,67 @@ class ChatService {
       if (!chat) {
         throw new Error('Chat not found');
       }
-      return chat;
+
+      // Map through participants to append user info and generate signed URLs
+      const chatWithUserInfo = {
+        ...chat.toObject(),
+        participants: await Promise.all(chat.participants.map(async (participant) => {
+          // Fetch user info
+          const userInfo = await userService.getUserById(participant.userId);
+
+
+          return {
+            ...participant.toObject(),
+            userInfo
+          };
+        }))
+      };
+
+      // Optionally populate messages.sender with minimal user info
+      chatWithUserInfo.messages = await Promise.all(chat.messages.map(async (message) => {
+        const senderInfo = await userService.getUserById(message.sender);
+        return {
+          ...message.toObject(),
+          sender: {
+            userId: message.sender,
+            username: senderInfo.username
+          }
+        };
+      }));
+
+      return chatWithUserInfo;
+
     } catch (error) {
-      console.error('Error fetching chat history:', error);
+      logger.error('Error fetching chat history:', error);
       throw error;
     }
-  }
+}
 
   async getUserChats(userId, page = 1, limit = 20) {
     try {
       const chats = await Chat.find({
         'participants.userId': userId
-      })
-      .populate('participants.userId', 'username photos')
-      .populate('lastMessage.sender', 'username')
-      .sort({ 'lastMessage.createdAt': -1 })
-      .skip((page - 1) * limit)
+      }).skip((page - 1) * limit)
       .limit(limit);
+      // Map through chats to append user info to participants
+      const chatsWithUserInfo = await Promise.all(chats.map(async (chat) => {
+        const participantsWithInfo = await Promise.all(chat.participants.map(async (participant) => {
+          const userInfo = await userService.getUserById(participant.userId);
+          return {
+            ...participant.toObject(),
+            userInfo
+          };
+        }));
 
-      return chats;
+        return {
+          ...chat.toObject(),
+          participants: participantsWithInfo
+        };
+      }));
+
+      return chatsWithUserInfo;
     } catch (error) {
-      console.error('Error fetching user chats:', error);
+      logger.error('Error fetching user chats:', error);
       throw error;
     }
   }

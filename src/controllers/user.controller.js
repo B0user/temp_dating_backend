@@ -3,25 +3,26 @@ const { uploadToS3, generatePresignedUrl, deleteFromS3, generateMediaKey } = req
 const { generateToken } = require('../utils/jwt');
 const logger = require('../utils/logger');
 const { z } = require('zod');
+const userService = require('../services/user.service');
 
 // Validation schemas
-const updateProfileSchema = z.object({
-  username: z.string().min(3).max(30).optional(),
-  bio: z.string().max(500).optional(),
-  interests: z.array(z.string()).optional(),
-  location: z.object({
-    type: z.literal('Point'),
-    coordinates: z.array(z.number()).length(2)
-  }).optional(),
-  preferences: z.object({
-    ageRange: z.object({
-      min: z.number().min(18).max(100),
-      max: z.number().min(18).max(100)
-    }).optional(),
-    distance: z.number().min(1).max(100).optional(),
-    gender: z.enum(['male', 'female', 'other']).optional()
-  }).optional()
-});
+// const updateProfileSchema = z.object({
+//   username: z.string().min(3).max(30).optional(),
+//   bio: z.string().max(500).optional(),
+//   interests: z.array(z.string()).optional(),
+//   location: z.object({
+//     type: z.literal('Point'),
+//     coordinates: z.array(z.number()).length(2)
+//   }).optional(),
+//   preferences: z.object({
+//     ageRange: z.object({
+//       min: z.number().min(18).max(100),
+//       max: z.number().min(18).max(100)
+//     }).optional(),
+//     distance: z.number().min(1).max(100).optional(),
+//     gender: z.enum(['male', 'female', 'other']).optional()
+//   }).optional()
+// });
 
 exports.register = async (req, res) => {
   let uploadedPhotos = [];
@@ -32,18 +33,18 @@ exports.register = async (req, res) => {
     // logger.debug('Request body:', JSON.stringify(req.body, null, 2));
 
     // Check for empty request body 
-    if (!req.body || Object.keys(req.body).length === 0) {
-      logger.error('Empty request body received');
-      return res.status(400).json({
-        error: 'Missing required fields',
-        details: {
-          requiredFields: [
-            'telegramId', 'name', 'gender', 'wantToFind', 'birthDay',
-            'country', 'city', 'latitude', 'longitude', 'purpose', 'interests'
-          ]
-        }
-      });
-    }
+    // if (!req.body || Object.keys(req.body).length === 0) {
+    //   logger.error('Empty request body received');
+    //   return res.status(400).json({
+    //     error: 'Missing required fields',
+    //     details: {
+    //       requiredFields: [
+    //         'telegramId', 'name', 'gender', 'wantToFind', 'birthDay',
+    //         'country', 'city', 'latitude', 'longitude', 'purpose', 'interests'
+    //       ]
+    //     }
+    //   });
+    // }
 
     // Extract and validate fields
     const {
@@ -52,44 +53,44 @@ exports.register = async (req, res) => {
     } = req.body;
 
     // Validate required fields
-    const missingFields = [];
-    if (!telegramId) missingFields.push('telegramId');
-    if (!name) missingFields.push('name');
-    if (!gender) missingFields.push('gender');
-    if (!wantToFind) missingFields.push('wantToFind');
-    if (!birthDay) missingFields.push('birthDay');
-    if (!country) missingFields.push('country');
-    if (!city) missingFields.push('city');
-    if (!latitude) missingFields.push('latitude');
-    if (!longitude) missingFields.push('longitude');
-    if (!purpose) missingFields.push('purpose');
-    if (!interests) missingFields.push('interests');
+    // const missingFields = [];
+    // if (!telegramId) missingFields.push('telegramId');
+    // if (!name) missingFields.push('name');
+    // if (!gender) missingFields.push('gender');
+    // if (!wantToFind) missingFields.push('wantToFind');
+    // if (!birthDay) missingFields.push('birthDay');
+    // if (!country) missingFields.push('country');
+    // if (!city) missingFields.push('city');
+    // if (!latitude) missingFields.push('latitude');
+    // if (!longitude) missingFields.push('longitude');
+    // if (!purpose) missingFields.push('purpose');
+    // if (!interests) missingFields.push('interests');
 
-    if (missingFields.length > 0) {
-      logger.error('Missing required fields:', missingFields);
-      return res.status(400).json({
-        error: 'Missing required fields',
-        details: { missingFields }
-      });
-    }
+    // if (missingFields.length > 0) {
+    //   logger.error('Missing required fields:', missingFields);
+    //   return res.status(400).json({
+    //     error: 'Missing required fields',
+    //     details: { missingFields }
+    //   });
+    // }
 
     // Validate gender and wantToFind enums
-    const validGenders = ['male', 'female', 'other'];
-    const validWantToFind = ['male', 'female', 'all'];
+    // const validGenders = ['male', 'female', 'other'];
+    // const validWantToFind = ['male', 'female', 'all'];
 
-    if (!validGenders.includes(gender)) {
-      return res.status(400).json({
-        error: 'Invalid gender',
-        details: { validOptions: validGenders }
-      });
-    }
+    // if (!validGenders.includes(gender)) {
+    //   return res.status(400).json({
+    //     error: 'Invalid gender',
+    //     details: { validOptions: validGenders }
+    //   });
+    // }
 
-    if (!validWantToFind.includes(wantToFind)) {
-      return res.status(400).json({
-        error: 'Invalid wantToFind',
-        details: { validOptions: validWantToFind }
-      });
-    }
+    // if (!validWantToFind.includes(wantToFind)) {
+    //   return res.status(400).json({
+    //     error: 'Invalid wantToFind',
+    //     details: { validOptions: validWantToFind }
+    //   });
+    // }
 
     // Check if user already exists
     const existingUser = await User.findOne({ telegramId });
@@ -109,12 +110,14 @@ exports.register = async (req, res) => {
         if (photoFile && photoFile[0]) {
           try {
             const key = generateMediaKey(telegramId, 'photos', photoFile[0].originalname);
+            console.log("key", key);
+            console.log("photoFile", photoFile);
             const url = await uploadToS3(photoFile[0], key);
+            console.log("url", url);
             uploadedPhotos.push({ key, url });
           } catch (error) {
             logger.error(`Error uploading photo${i}:`, error.message);
-            // Clean up any successfully uploaded photos
-            await cleanupUploads(uploadedPhotos, uploadedAudio);
+            await userService.cleanupUploads(uploadedPhotos, uploadedAudio);
             return res.status(500).json({
               error: 'Failed to upload photos',
               details: { 
@@ -136,8 +139,7 @@ exports.register = async (req, res) => {
         uploadedAudio = { key, url };
       } catch (error) {
         logger.error('Error uploading audio message:', error.message);
-        // Clean up uploaded photos
-        await cleanupUploads(uploadedPhotos, uploadedAudio);
+        await userService.cleanupUploads(uploadedPhotos, uploadedAudio);
         return res.status(500).json({
           error: 'Failed to upload audio message',
           details: { 
@@ -157,7 +159,7 @@ exports.register = async (req, res) => {
           : [];
     } catch (error) {
       logger.error('Error parsing interests:', error.message);
-      await cleanupUploads(uploadedPhotos, uploadedAudio);
+      await userService.cleanupUploads(uploadedPhotos, uploadedAudio);
       return res.status(400).json({
         error: 'Invalid interests format',
         details: { 
@@ -166,61 +168,20 @@ exports.register = async (req, res) => {
       });
     }
 
-    // Create new user
-    const user = new User({
-      telegramId,
-      name,
-      gender,
-      wantToFind,
-      birthDay: new Date(birthDay),
-      country,
-      city,
-      latitude: parseFloat(latitude),
-      longitude: parseFloat(longitude),
-      purpose,
-      interests: parsedInterests,
-      photos: uploadedPhotos.map(p => p.url),
-      audioMessage: uploadedAudio?.url
+    const result = await userService.registerUser(
+      telegramId, name, gender, wantToFind, birthDay,
+      country, city, latitude, longitude, purpose, interests,
+      uploadedPhotos, uploadedAudio
+    );
+
+    res.status(201).json({
+      message: 'User registered successfully',
+      ...result
     });
-
-    // Save user and verify the save was successful
-    try {
-      const savedUser = await user.save();
-      
-      // Verify the user was actually saved
-      const verifiedUser = await User.findById(savedUser._id);
-      if (!verifiedUser) {
-        throw new Error('User was not properly saved to the database');
-      }
-
-      // Generate JWT token
-      const token = generateToken(telegramId);
-
-      res.status(201).json({
-        message: 'User registered successfully',
-        token,
-        user: {
-          id: verifiedUser._id,
-          telegramId: verifiedUser.telegramId,
-          name: verifiedUser.name,
-          photos: verifiedUser.photos,
-          audioMessage: verifiedUser.audioMessage
-        }
-      });
-    } catch (saveError) {
-      logger.error('Error saving user to database:', saveError.message);
-      await cleanupUploads(uploadedPhotos, uploadedAudio);
-      return res.status(500).json({
-        error: 'Failed to save user',
-        details: {
-          message: saveError.message
-        }
-      });
-    }
 
   } catch (error) {
     logger.error('Registration error:', error.message);
-    await cleanupUploads(uploadedPhotos, uploadedAudio);
+    await userService.cleanupUploads(uploadedPhotos, uploadedAudio);
     
     // Handle validation errors
     if (error.name === 'ValidationError') {
@@ -243,75 +204,18 @@ exports.register = async (req, res) => {
   }
 };
 
-// Helper function to clean up uploaded files
-async function cleanupUploads(photos, audio) {
-  try {
-    // Clean up photos
-    for (const photo of photos) {
-      try {
-        await deleteFromS3(photo.key);
-      } catch (error) {
-        logger.error('Error cleaning up photo:', error.message);
-      }
-    }
-
-    // Clean up audio
-    if (audio) {
-      try {
-        await deleteFromS3(audio.key);
-      } catch (error) {
-        logger.error('Error cleaning up audio:', error.message);
-      }
-    }
-  } catch (error) {
-    logger.error('Error during cleanup:', error.message);
-  }
-}
-
 exports.login = async (req, res) => {
   try {
     const { telegramId } = req.body;
-
-    // Find user by telegramId
-    const user = await User.findOne({ telegramId });
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    // Generate JWT token
-    const token = generateToken(telegramId);
-
-    // Generate presigned URLs for photos
-    const photoUrls = await Promise.all(
-      user.photos.map(async (photoKey) => {
-        return await generatePresignedUrl(photoKey);
-      })
-    );
-
-    // Generate presigned URL for audio message if exists
-    let audioMessageUrl = null;
-    if (user.audioMessage) {
-      audioMessageUrl = await generatePresignedUrl(user.audioMessage);
-    }
-
+    const result = await userService.loginUser(telegramId);
     res.status(200).json({
       message: 'Login successful',
-      token,
-      user: {
-        telegramId: user.telegramId,
-        name: user.name,
-        gender: user.gender,
-        wantToFind: user.wantToFind,
-        birthDay: user.birthDay,
-        country: user.country,
-        city: user.city,
-        purpose: user.purpose,
-        interests: user.interests,
-        photos: photoUrls,
-        audioMessage: audioMessageUrl
-      }
+      ...result
     });
   } catch (error) {
+    if (error.message === 'User not found') {
+      return res.status(404).json({ message: 'User not found' });
+    }
     console.error('Login error:', error);
     res.status(500).json({ message: 'Error during login' });
   }
@@ -353,10 +257,11 @@ exports.deletePhoto = async (req, res) => {
 
 exports.updateMainInfo = async (req, res) => {
   try {
-    const { telegramId, name, gender, wantToFind, birthDay, country, city } = req.body;
-
-    // Find user by telegramId
-    const user = await User.findOne({ telegramId });
+    const { name, gender, wantToFind, birthDay, country, city, latitude, longitude } = req.body;
+    const userId = req.headers['x-user-id'];
+    
+    // Find user by ID
+    const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -365,9 +270,32 @@ exports.updateMainInfo = async (req, res) => {
     user.name = name;
     user.gender = gender;
     user.wantToFind = wantToFind;
-    user.birthDay = birthDay;
+    user.birthDay = new Date(birthDay); // Parse the date string to Date object
     user.country = country;
     user.city = city;
+
+    // Update location if coordinates are provided
+    if (latitude && longitude) {
+      user.location = {
+        type: 'Point',
+        coordinates: [parseFloat(longitude), parseFloat(latitude)]
+      };
+    }
+
+    // Update preferences if not set or update gender preference
+    if (!user.preferences) {
+      user.preferences = {
+        gender: wantToFind === 'all' ? 'all' : wantToFind, // Ensure valid enum value
+        ageRange: {
+          min: 18,
+          max: 100
+        },
+        distance: 50
+      };
+    } else {
+      // Update only the gender preference, ensuring valid enum value
+      user.preferences.gender = wantToFind === 'all' ? 'all' : wantToFind;
+    }
 
     await user.save();
 
@@ -391,7 +319,7 @@ exports.updateMainInfo = async (req, res) => {
         name: user.name,
         gender: user.gender,
         wantToFind: user.wantToFind,
-        birthDay: user.birthDay,
+        birthDay: user.birthDay.toISOString().split('T')[0], // Format date as yyyy-MM-dd
         country: user.country,
         city: user.city,
         purpose: user.purpose,
@@ -409,10 +337,11 @@ exports.updateMainInfo = async (req, res) => {
 exports.updateAudio = async (req, res) => {
   try {
     const { telegramId } = req.body;
+    const userId = req.headers['x-user-id'];
     let uploadedAudio = null;
 
     // Find user by telegramId
-    const user = await User.findOne({ telegramId });
+    const user = await User.findById({ userId });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
@@ -439,6 +368,8 @@ exports.updateAudio = async (req, res) => {
       }
     }
 
+    
+
     // Update user's audio message
     user.audioMessage = uploadedAudio?.url || null;
     await user.save();
@@ -460,6 +391,7 @@ exports.updateAudio = async (req, res) => {
 };
 
 exports.updatePhotos = async (req, res) => {
+  console.log("STARTED UPDATE PHOTOS");
   try {
     const { telegramId } = req.body;
     let uploadedPhotos = [];
@@ -476,6 +408,7 @@ exports.updatePhotos = async (req, res) => {
     if (user.photos && user.photos.length > 0) {
       for (const photoKey of user.photos) {
         try {
+          console.log("photoKey", photoKey);
           await deleteFromS3(photoKey);
         } catch (error) {
           console.error('Error deleting old photo:', error);
@@ -487,31 +420,48 @@ exports.updatePhotos = async (req, res) => {
 
     // Process new photos
     if (req.files) {
-      for (let i = 1; i <= 4; i++) {
-        const photoFile = req.files[`photo${i}`];
-        if (photoFile && photoFile[0]) {
-          try {
-            const key = generateMediaKey(telegramId, 'photos', photoFile[0].originalname);
-            const url = await uploadToS3(photoFile[0], key);
+      console.log("req.files", req.files);
+      try {
+        for (const photoFile of req.files) {
+          if (photoFile) {
+            const key = generateMediaKey(telegramId, 'photos', photoFile.originalname);
+            console.log("key", key);
+            console.log("photoFile", photoFile);
+            const url = await uploadToS3(photoFile, key);
+            console.log("url", url);
             uploadedPhotos.push({ key, url });
-          } catch (error) {
-            console.error(`Error uploading photo${i}:`, error);
-            // Clean up any successfully uploaded photos
-            await cleanupUploads(uploadedPhotos, null);
-            return res.status(500).json({ message: `Error uploading photo${i}` });
           }
         }
+      } catch (error) {
+        console.error("Error uploading photos:", error);
+        // Clean up any successfully uploaded photos
+        await userService.cleanupUploads(uploadedPhotos, null);
+        return res.status(500).json({ message: "Error uploading photos" });
       }
     }
     console.log("after new upload ");
 
-    // Update user's photos
-    user.photos = uploadedPhotos.map(p => p.url);
-    await user.save();
+    // Update user's photos while preserving other fields
+    const updatedUser = await User.findOneAndUpdate(
+      { telegramId },
+      { 
+        $set: { 
+          photos: uploadedPhotos.map(p => p.url)
+        }
+      },
+      { 
+        new: true,
+        runValidators: true
+      }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ message: 'User not found after update' });
+    }
 
     // Generate presigned URLs for the new photos
     const photoUrls = await Promise.all(
-      user.photos.map(async (photoKey) => {
+      updatedUser.photos.map(async (photoKey) => {
         return await generatePresignedUrl(photoKey);
       })
     );
@@ -591,54 +541,26 @@ exports.updateMeetGoal = async (req, res) => {
 
 exports.getProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
-      .select('-password -verification.photo -verification.reviewedBy -verification.reviewedAt');
-    
-    if (!user) {
+    const user = await userService.getProfile(req.user.id);
+    res.json(user);
+  } catch (error) {
+    if (error.message === 'User not found') {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    // Generate signed URLs for photos
-    const photosWithSignedUrls = await Promise.all(
-      user.photos.map(async (photo) => {
-        const signedUrl = await generatePresignedUrl(photo);
-        return signedUrl;
-      })
-    );
-
-    // Generate signed URL for audio message if exists
-    let audioMessageSignedUrl = null;
-    if (user.audioMessage) {
-      audioMessageSignedUrl = await generatePresignedUrl(user.audioMessage);
-    }
-
-    res.json({
-      ...user.toObject(),
-      photos: photosWithSignedUrls,
-      audioMessage: audioMessageSignedUrl
-    });
-  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
 exports.updateProfile = async (req, res) => {
   try {
-    const validatedData = updateProfileSchema.parse(req.body);
-    const user = await User.findByIdAndUpdate(
-      req.user.id,
-      { $set: validatedData },
-      { new: true, runValidators: true }
-    ).select('-password -verification.photo -verification.reviewedBy -verification.reviewedAt');
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    const user = await userService.updateProfile(req.user.id, req.body);
     res.json(user);
   } catch (error) {
-    if (error instanceof z.ZodError) {
+    if (error.message === 'Invalid profile data') {
       return res.status(400).json({ error: error.errors });
+    }
+    if (error.message === 'User not found') {
+      return res.status(404).json({ error: 'User not found' });
     }
     res.status(500).json({ error: error.message });
   }
@@ -646,36 +568,12 @@ exports.updateProfile = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.userId)
-      .select('-password');
-    
-    if (!user) {
+    const user = await userService.getUserById(req.params.userId);
+    res.json(user);
+  } catch (error) {
+    if (error.message === 'User not found') {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    // Generate signed URLs for photos
-    const photosWithSignedUrls = await Promise.all(
-      user.photos.map(async (photo) => {
-        const signedUrl = await generatePresignedUrl(photo);
-        return signedUrl;
-      })
-    );
-
-    // Generate signed URL for audio message if exists
-    let audioMessageSignedUrl = null;
-    if (user.audioMessage) {
-      audioMessageSignedUrl = await generatePresignedUrl(user.audioMessage);
-    }
-
-    const result = {
-      ...user.toObject(),
-      photos: photosWithSignedUrls,
-      audioMessage: audioMessageSignedUrl
-    };
-
-    console.log(result);
-    res.json(result);
-  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
@@ -683,44 +581,8 @@ exports.getUserById = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const skip = (page - 1) * limit;
-
-    const users = await User.find()
-      .select('-password')
-      .skip(skip)
-      .limit(parseInt(limit))
-      .sort({ createdAt: -1 });
-
-    // Generate signed URLs for all users' photos and audio messages
-    const usersWithSignedUrls = await Promise.all(
-      users.map(async (user) => {
-        const photosWithSignedUrls = await Promise.all(
-          user.photos.map(async (photo) => {
-            const signedUrl = await generatePresignedUrl(photo);
-            return signedUrl;
-          })
-        );
-
-        let audioMessageSignedUrl = null;
-        if (user.audioMessage) {
-          audioMessageSignedUrl = await generatePresignedUrl(user.audioMessage);
-        }
-
-        return {
-          ...user.toObject(),
-          photos: photosWithSignedUrls,
-          audioMessage: audioMessageSignedUrl
-        };
-      })
-    );
-
-    const total = await User.countDocuments();
-
-    res.json({
-      users: usersWithSignedUrls,
-      total,
-      pages: Math.ceil(total / limit)
-    });
+    const result = await userService.getAllUsers(page, limit);
+    res.json(result);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -728,14 +590,12 @@ exports.getAllUsers = async (req, res) => {
 
 exports.deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndDelete(req.params.userId);
-    
-    if (!user) {
+    const result = await userService.deleteUser(req.params.userId);
+    res.json(result);
+  } catch (error) {
+    if (error.message === 'User not found') {
       return res.status(404).json({ error: 'User not found' });
     }
-
-    res.json({ message: 'User deleted successfully' });
-  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 }; 

@@ -14,6 +14,11 @@ const subscriptionSchema = z.object({
   paymentMethod: z.enum(['stripe', 'wallet'])
 });
 
+const purchaseSchema = z.object({
+  amount: z.number().min(1),
+  type: z.enum(['coins', 'mytaCoins'])
+});
+
 class WalletService {
   async createPaymentIntent(userId, amount, currency = 'USD', description = '') {
     try {
@@ -235,6 +240,73 @@ class WalletService {
       return subscription;
     } catch (error) {
       throw new Error('Error getting user subscription');
+    }
+  }
+
+  async purchaseCoins(userId, amount, type) {
+    try {
+      const validatedData = purchaseSchema.parse({
+        amount,
+        type
+      });
+
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Create transaction
+      const transaction = await Transaction.create({
+        user: userId,
+        type: 'deposit',
+        amount: validatedData.amount,
+        currency: validatedData.type,
+        status: 'completed',
+        metadata: {
+          purchaseType: validatedData.type
+        }
+      });
+
+      // Update user's wallet balance while preserving other fields
+      const update = {};
+      if (validatedData.type === 'coins') {
+        update['wallet.coins'] = (user.wallet.coins || 0) + validatedData.amount;
+      } else {
+        update['wallet.mytaCoins'] = (user.wallet.mytaCoins || 0) + validatedData.amount;
+      }
+
+      // Use findByIdAndUpdate to only update the wallet fields
+      const updatedUser = await User.findByIdAndUpdate(
+        userId,
+        { $set: update },
+        { new: true }
+      );
+
+      return {
+        transaction,
+        newBalance: updatedUser.wallet
+      };
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error('Invalid purchase data');
+      }
+      throw error;
+    }
+  }
+
+  async getUserBalance(userId) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      return {
+        coins: user.wallet.coins || 0,
+        mytaCoins: user.wallet.mytaCoins || 0
+      };
+    } catch (error) {
+      throw new Error('Error getting user balance');
     }
   }
 }

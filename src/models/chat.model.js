@@ -47,35 +47,6 @@ const participantSchema = new Schema({
     ref: 'User',
     required: true
   },
-  username: {
-    type: String,
-    required: true
-  },
-  photos: [{
-    type: String, // URLs to photos in S3
-    trim: true
-  }],
-  audioMessage: {
-    type: String, // URL to audio message in S3
-    trim: true
-  },
-  birthDay: Date,
-  interests: [String],
-  gender: String,
-  bio: String,
-  location: {
-    country: String,
-    city: String
-  },
-  purpose: String,
-  preferences: {
-    ageRange: {
-      min: Number,
-      max: Number
-    },
-    distance: Number,
-    gender: String
-  }
 });
 
 const chatSchema = new Schema({

@@ -1,116 +1,24 @@
 const express = require('express');
 const router = express.Router();
-const authService = require('../services/auth.service');
+const authController = require('../controllers/auth.controller');
 const { authMiddleware } = require('../middleware/auth.middleware');
-const z = require('zod');
 
 // Telegram login
-router.post('/telegram', async (req, res) => {
-  try {
-    const { user, token } = await authService.verifyTelegramAuth(req.body);
-    res.json({ user, token });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
-});
+router.post('/telegram', authController.telegramLogin);
 
 // Register user
-router.post('/register', async (req, res) => {
-  try {
-    // console.log('Request body:', req.body);
-    // console.log('Request files:', req.files);
-    
-    // Check if request body is empty or only contains empty values
-    if (!req.body || Object.keys(req.body).length === 0) {
-      console.log('Empty request body detected');
-      return res.status(400).json({ 
-        error: 'Empty request body',
-        message: 'No registration data provided'
-      });
-    }
-
-    const { user, token } = await authService.register(req.body, req.files);
-    res.status(201).json({ user, token });
-  } catch (error) {
-    console.error('Registration error:', error);
-    if (error.message === 'User with this Telegram ID already exists') {
-      res.status(409).json({ error: error.message });
-    } else if (error instanceof z.ZodError) {
-      res.status(400).json({ 
-        error: 'Validation failed',
-        details: error.errors 
-      });
-    } else {
-      res.status(500).json({ error: error.message });
-    }
-  }
-});
+router.post('/register', authController.register);
 
 // Login user
-router.post('/login', async (req, res) => {
-  try {
-    const { telegramId } = req.body;
-    const { user, token } = await authService.login(telegramId);
-    res.json({ user, token });
-  } catch (error) {
-    if (error.message === 'User not found') {
-      res.status(404).json({ error: error.message });
-    } else {
-      res.status(500).json({ error: error.message });
-    }
-  }
-});
+router.post('/login', authController.login);
 
 // Validate token
-router.post('/validate', async (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ error: 'Token is required' });
-    }
-
-    const user = await authService.validateUser(token);
-    res.json({ user });
-  } catch (error) {
-    res.status(401).json({ error: error.message });
-  }
-});
+router.post('/validate', authController.validateToken);
 
 // Verify token
-router.get('/verify', authMiddleware, async (req, res) => {
-  try {
-    res.status(200).json({
-      status: 'success',
-      data: {
-        user: req.user
-      }
-    });
-  } catch (error) {
-    res.status(401).json({
-      status: 'error',
-      message: 'Invalid token'
-    });
-  }
-});
+router.get('/verify', authMiddleware, authController.verifyToken);
 
-// Logout (client-side only, as JWT tokens are stateless)
-router.post('/logout', authMiddleware, async (req, res) => {
-  try {
-    // In a real implementation, you might want to:
-    // 1. Add the token to a blacklist
-    // 2. Update user's lastActive timestamp
-    // 3. Clear any active sessions
-
-    res.status(200).json({
-      status: 'success',
-      message: 'Logged out successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Error during logout'
-    });
-  }
-});
+// Logout
+router.post('/logout', authMiddleware, authController.logout);
 
 module.exports = router; 
