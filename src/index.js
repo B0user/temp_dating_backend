@@ -58,7 +58,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/auth', authRoutes);
 
-app.use(authMiddleware);
+// app.use(authMiddleware);
 
 app.use('/users', userRoutes);
 app.use('/chats', chatRoutes);

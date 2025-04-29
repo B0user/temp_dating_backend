@@ -1,22 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const walletController = require('../controllers/wallet.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
 
 // Create payment intent
-router.post('/payment-intent', authMiddleware, walletController.createPaymentIntent);
+router.post('/payment-intent', walletController.createPaymentIntent);
 
 // Purchase coins
-router.post('/purchase', authMiddleware, walletController.purchaseCoins);
+router.post('/purchase', walletController.purchaseCoins);
 
 // Get user's transactions
-router.get('/transactions', authMiddleware, walletController.getUserTransactions);
+router.get('/transactions', walletController.getUserTransactions);
 
 // Create subscription
-router.post('/subscription', authMiddleware, walletController.createSubscription);
+router.post('/subscription', walletController.createSubscription);
 
 // Get user's subscription
-router.get('/subscription', authMiddleware, walletController.getUserSubscription);
+router.get('/subscription', walletController.getUserSubscription);
 
 // Webhook for Stripe events
 router.post('/webhook', express.raw({ type: 'application/json' }), walletController.handleWebhook);

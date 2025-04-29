@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
-const { authMiddleware } = require('../middleware/auth.middleware');
 
 // Telegram login
 router.post('/telegram', authController.telegramLogin);
@@ -16,9 +15,9 @@ router.post('/login', authController.login);
 router.post('/validate', authController.validateToken);
 
 // Verify token
-router.get('/verify', authMiddleware, authController.verifyToken);
+router.get('/verify', authController.verifyToken);
 
 // Logout
-router.post('/logout', authMiddleware, authController.logout);
+router.post('/logout', authController.logout);
 
 module.exports = router; 
