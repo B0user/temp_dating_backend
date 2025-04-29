@@ -2,7 +2,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user.model');
 const { z } = require('zod');
-const { uploadToS3, generatePresignedUrl } = require('../utils/s3');
+const { uploadToS3, generatePresignedUrl, generateMediaKey, deleteFromS3 } = require('../utils/s3');
 
 const telegramAuthSchema = z.object({
   id: z.string(),
@@ -78,8 +78,7 @@ class AuthService {
   async register(registrationData, files) {
     try {
       console.log('=== Auth Service Registration Debug ===');
-      // console.log('Raw registration data:', JSON.stringify(registrationData, null, 2));
-      // console.log('Files:', files);
+      console.log('Files:', files);
 
       if (!registrationData) {
         throw new Error('No registration data provided');
@@ -90,7 +89,6 @@ class AuthService {
       if (typeof registrationData.interests === 'string') {
         try {
           parsedInterests = JSON.parse(registrationData.interests);
-          // console.log('Parsed interests:', parsedInterests);
         } catch (error) {
           console.error('Error parsing interests:', error);
           parsedInterests = [];
@@ -116,16 +114,7 @@ class AuthService {
         audioMessage: null // We'll handle audio upload separately
       };
 
-      console.log('Processed user data:', JSON.stringify(userData, null, 2));
-
-      // Validate the data
-      // try {
-      //   const validatedData = registrationSchema.parse(userData);
-      //   console.log('Validated data:', JSON.stringify(validatedData, null, 2));
-      // } catch (validationError) {
-      //   console.error('Validation error:', validationError);
-      //   throw new Error('Validation failed', { details: validationError.errors });
-      // }
+      // console.log('Processed user data:', JSON.stringify(userData, null, 2));
 
       // Check if user already exists
       const existingUser = await User.findOne({ telegramId: userData.telegramId });
@@ -161,32 +150,105 @@ class AuthService {
         }
       });
 
-      console.log('User object to save:', JSON.stringify(user, null, 2));
+      // console.log('User object to save:', JSON.stringify(user, null, 2));
       await user.save();
-      console.log('User saved successfully');
+      // console.log('User saved successfully');
 
       // Handle file uploads
-      if (files && files.photos && files.photos.length > 0) {
-        console.log('Processing photos...');
-        for (const photo of files.photos) {
-          const photoUrl = await uploadToS3(photo.buffer, photo.originalname, photo.mimetype);
-          user.photos.push(photoUrl);
-        }
-        await user.save();
-        console.log('Photos uploaded successfully');
-      }
+      if (files && Array.isArray(files)) {
+        let uploadedPhotos = [];
+        let uploadedAudio = null;
 
-      if (files && files.audioMessage && files.audioMessage.length > 0) {
-        console.log('Processing audio message...');
-        const audioFile = files.audioMessage[0];
-        const audioUrl = await uploadToS3(
-          audioFile.buffer,
-          audioFile.originalname,
-          audioFile.mimetype
-        );
-        user.audioMessage = audioUrl;
-        await user.save();
-        console.log('Audio message uploaded successfully');
+        try {
+          // Process photos
+          const photos = files.filter(file => file.fieldname === 'photos');
+          if (photos.length > 0) {
+            console.log('Processing photos...');
+            for (const photo of photos) {
+              if (photo && photo.buffer) {
+                console.log('Processing photo:', photo.originalname);
+                const key = generateMediaKey(userData.telegramId, 'photos', photo.originalname);
+                console.log('Photo key:', key);
+                const url = await uploadToS3(photo, key);
+                console.log('Photo URL:', url);
+                uploadedPhotos.push({ key, url });
+              }
+            }
+          }
+
+          // Process audio message
+          const audioMessage = files.find(file => file.fieldname === 'audioMessage');
+          if (audioMessage && audioMessage.buffer) {
+            console.log('Processing audio message...');
+            const key = generateMediaKey(userData.telegramId, 'audio', audioMessage.originalname);
+            console.log('Audio key:', key);
+            const url = await uploadToS3(audioMessage, key);
+            console.log('Audio URL:', url);
+            uploadedAudio = { key, url };
+          }
+
+          // Update user with uploaded files
+          const updateData = {
+            photos: uploadedPhotos.map(p => p.url)
+          };
+          
+          if (uploadedAudio) {
+            updateData.audioMessage = uploadedAudio.url;
+          }
+
+          const updatedUser = await User.findOneAndUpdate(
+            { telegramId: userData.telegramId },
+            { $set: updateData },
+            { new: true, runValidators: true }
+          );
+
+          if (!updatedUser) {
+            throw new Error('Failed to update user with uploaded files');
+          }
+
+          // Generate presigned URLs for photos
+          const photoUrls = await Promise.all(
+            updatedUser.photos.map(async (photoKey) => {
+              return await generatePresignedUrl(photoKey);
+            })
+          );
+
+          // Generate presigned URL for audio if exists
+          let audioUrl = null;
+          if (updatedUser.audioMessage) {
+            audioUrl = await generatePresignedUrl(updatedUser.audioMessage);
+          }
+
+          return { 
+            user: updatedUser, 
+            token: this.generateToken(updatedUser),
+            photoUrls,
+            audioUrl
+          };
+
+        } catch (error) {
+          console.error('Error uploading files:', error);
+          // Clean up any successfully uploaded files
+          if (uploadedPhotos.length > 0) {
+            await Promise.all(
+              uploadedPhotos.map(async (photo) => {
+                try {
+                  await deleteFromS3(photo.key);
+                } catch (deleteError) {
+                  console.error('Error deleting photo:', deleteError);
+                }
+              })
+            );
+          }
+          if (uploadedAudio) {
+            try {
+              await deleteFromS3(uploadedAudio.key);
+            } catch (deleteError) {
+              console.error('Error deleting audio:', deleteError);
+            }
+          }
+          throw error;
+        }
       }
 
       const token = this.generateToken(user);

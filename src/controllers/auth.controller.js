@@ -21,6 +21,8 @@ exports.register = async (req, res) => {
       });
     }
 
+    // console.log('req.files', req.files);
+
     const { user, token } = await authService.register(req.body, req.files);
     res.status(201).json({ user, token });
   } catch (error) {
