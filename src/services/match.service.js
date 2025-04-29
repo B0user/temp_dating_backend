@@ -194,8 +194,8 @@ class MatchService {
 
   async getPotentialMatches(userId, page = 1, limit = 20) {
     try {
-      console.log('=== getPotentialMatches Debug ===');
-      console.log('Using userId:', userId);
+      // console.log('=== getPotentialMatches Debug ===');
+      // console.log('Using userId:', userId);
       
       if (!userId) {
         console.error('Error: userId is required but not provided');
@@ -223,7 +223,7 @@ class MatchService {
         users: userObjectId
       }).select('users');
 
-      console.log('Existing matches count:', existingMatches.length);
+      // console.log('Existing matches count:', existingMatches.length);
 
       const excludedUserIds = [
         userObjectId,
@@ -259,7 +259,7 @@ class MatchService {
         query.gender = user.preferences.gender;
       }
 
-      console.log('Query for potential matches:', JSON.stringify(query, null, 2));
+      // console.log('Query for potential matches:', JSON.stringify(query, null, 2));
 
       // First get total count
       const total = await User.countDocuments(query);
@@ -291,8 +291,8 @@ class MatchService {
         return userObj;
       }));
 
-      console.log('Found potential matches:', usersWithSignedPhotos.length);
-      console.log('=== End getPotentialMatches Debug ===');
+      // console.log('Found potential matches:', usersWithSignedPhotos.length);
+      // console.log('=== End getPotentialMatches Debug ===');
 
       return {
         users: usersWithSignedPhotos,
