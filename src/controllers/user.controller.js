@@ -5,6 +5,22 @@ const logger = require('../utils/logger');
 const { z } = require('zod');
 const userService = require('../services/user.service');
 
+exports.getUserIdByTelegramId = async (req, res) => {
+  try {
+    const { telegram_id } = req.params;
+    console.log("telegramId", telegram_id);
+    const user = await User.findOne({ telegramId: telegram_id });
+    console.log("user", user);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    res.status(200).json({ userId: user._id });
+  } catch (error) {
+    console.error('Error getting user ID by telegram ID:', error);
+    res.status(500).json({ message: 'Error getting user ID by telegram ID' });
+  }
+};
+
 // Validation schemas
 // const updateProfileSchema = z.object({
 //   username: z.string().min(3).max(30).optional(),

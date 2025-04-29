@@ -10,7 +10,10 @@ router.post('/login', userController.login);
 
 
 // Get user profile
+router.get('/get-user-id/:telegram_id', userController.getUserIdByTelegramId);
+
 router.get('/profile', userController.getProfile);
+
 // Get user by ID (admin only)
 router.get('/:userId', userController.getUserById);
 // Get all users (admin only)
