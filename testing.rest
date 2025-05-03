@@ -1,4 +1,7 @@
 ###
+GET http://localhost:3001/users/get-user-id/2005
+
+
 
 ### Register user (JSON format)
 POST http://localhost:3001/auth/register

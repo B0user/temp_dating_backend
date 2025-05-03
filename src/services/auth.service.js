@@ -24,9 +24,10 @@ const registrationSchema = z.object({
   latitude: z.number(),
   longitude: z.number(),
   purpose: z.string(),
-  interests: z.array(z.string()), // Changed from string to array of strings
-  photos: z.array(z.string()).optional(), // Made optional since we handle files separately
-  audioMessage: z.string().optional() // Made optional since we handle files separately
+  interests: z.array(z.string()),
+  photos: z.array(z.string()).optional(),
+  audioMessage: z.string().optional(),
+  friendInviteId: z.string().optional()
 });
 
 class AuthService {
@@ -110,11 +111,9 @@ class AuthService {
         longitude: parseFloat(registrationData.longitude),
         purpose: registrationData.purpose,
         interests: parsedInterests,
-        photos: [], // We'll handle photo uploads separately
-        audioMessage: null // We'll handle audio upload separately
+        photos: [],
+        audioMessage: null
       };
-
-      // console.log('Processed user data:', JSON.stringify(userData, null, 2));
 
       // Check if user already exists
       const existingUser = await User.findOne({ telegramId: userData.telegramId });
@@ -137,8 +136,8 @@ class AuthService {
         },
         purpose: userData.purpose,
         interests: userData.interests,
-        photos: [], // We'll handle photo uploads separately
-        audioMessage: null, // We'll handle audio upload separately
+        photos: [],
+        audioMessage: null,
         isVerified: false,
         preferences: {
           ageRange: {
@@ -150,9 +149,24 @@ class AuthService {
         }
       });
 
-      // console.log('User object to save:', JSON.stringify(user, null, 2));
       await user.save();
-      // console.log('User saved successfully');
+
+      // Process friend invite if provided
+      let inviteRewards = null;
+      if (registrationData.friendInviteId) {
+        const FriendInviteService = require('./friendinvite.service');
+        try {
+          const inviteCode = await FriendInviteService.generateInviteCode(registrationData.friendInviteId);
+          inviteRewards = await FriendInviteService.processInvite({
+            inviterId: registrationData.friendInviteId,
+            inviteeId: user._id,
+            inviteCode
+          });
+        } catch (error) {
+          console.error('Error processing friend invite:', error);
+          // Continue with registration even if invite processing fails
+        }
+      }
 
       // Handle file uploads
       if (files && Array.isArray(files)) {
@@ -223,7 +237,8 @@ class AuthService {
             user: updatedUser, 
             token: this.generateToken(updatedUser),
             photoUrls,
-            audioUrl
+            audioUrl,
+            inviteRewards
           };
 
         } catch (error) {
@@ -252,7 +267,11 @@ class AuthService {
       }
 
       const token = this.generateToken(user);
-      return { user, token };
+      return { 
+        user, 
+        token,
+        inviteRewards
+      };
     } catch (error) {
       if (error instanceof z.ZodError) {
         throw new Error('Validation failed', { details: error.errors });
