@@ -6,28 +6,38 @@ class StreamChatService {
     async createStreamChat(streamerId) {
         try {
             console.log('[StreamChatService] Creating stream chat for streamer:', streamerId);
-            // Get streamer info
-            const streamer = await User.findById(streamerId);
+            
+            // Get streamer info with username
+            const streamer = await User.findById(streamerId).select('name');
             if (!streamer) {
                 console.error('[StreamChatService] Streamer not found:', streamerId);
                 throw new Error('Streamer not found');
             }
 
+            if (!streamer.name) {
+                console.error('[StreamChatService] Streamer username not found:', streamerId);
+                throw new Error('Streamer username not found');
+            }
+
+            // Delete any existing chat messages for this streamer
+            const deleteResult = await StreamChatMessage.deleteMany({ streamId: streamerId });
+            console.log('[StreamChatService] Deleted existing chat messages:', deleteResult);
+
             // Use streamer's ID as streamId
             const streamId = streamerId;
 
-            // Create welcome message
+            // Create welcome message with username
             const welcomeMessage = await StreamChatMessage.create({
                 streamId,
                 userId: streamerId,
-                username: streamer.username,
+                username: streamer.name,
                 role: 'streamer',
                 message: 'Stream chat has started!'
             });
 
             console.log('[StreamChatService] Stream chat created successfully:', {
                 streamId,
-                streamer: streamer.username
+                streamer: streamer.name
             });
 
             return {
@@ -45,18 +55,26 @@ class StreamChatService {
 
     async sendMessage(streamId, userId, message) {
         try {
-            // Get user info
-            const user = await User.findById(userId);
+            // Get user info with username
+            console.log('[StreamChatService] Sending message:', message);
+            console.log('[StreamChatService] Stream ID:', streamId);
+            console.log('[StreamChatService] User ID:', userId);
+            
+            const user = await User.findById(userId).select('name');
             if (!user) {
                 throw new Error('User not found');
             }
 
-            // Create new message
+            if (!user.name) {
+                throw new Error('User username not found');
+            }
+
+            // Create new message with username
             const newMessage = await StreamChatMessage.create({
                 streamId,
                 userId,
-                username: user.username,
-                role: 'viewer', // Default role, can be updated based on stream permissions
+                username: user.name,
+                role: 'viewer',
                 message
             });
 
@@ -67,7 +85,7 @@ class StreamChatService {
                 }
             };
         } catch (error) {
-            console.error('Error sending stream message:', error);
+            console.error('[StreamChatService] Error sending message:', error);
             throw error;
         }
     }
@@ -82,11 +100,11 @@ class StreamChatService {
             return {
                 status: 'success',
                 data: {
-                    messages: messages.reverse() // Return in chronological order
+                    messages: messages.reverse()
                 }
             };
         } catch (error) {
-            console.error('Error fetching stream chat history:', error);
+            console.error('[StreamChatService] Error fetching chat history:', error);
             throw error;
         }
     }
@@ -98,7 +116,7 @@ class StreamChatService {
                 { $set: { role } }
             );
         } catch (error) {
-            console.error('Error updating user role:', error);
+            console.error('[StreamChatService] Error updating user role:', error);
             throw error;
         }
     }
@@ -107,7 +125,7 @@ class StreamChatService {
         try {
             await StreamChatMessage.findByIdAndDelete(messageId);
         } catch (error) {
-            console.error('Error deleting message:', error);
+            console.error('[StreamChatService] Error deleting message:', error);
             throw error;
         }
     }

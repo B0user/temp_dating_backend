@@ -3,7 +3,7 @@ const streamChatService = require('../services/stream-chat.service');
 
 const setupChatSocket = (io) => {
     io.on('connection', (socket) => {
-        // console.log('User connected:', socket.id);
+        console.log('User connected:', socket.id);
 
         // Join chat room
         socket.on('join-chat', async (chatId) => {
@@ -19,6 +19,7 @@ const setupChatSocket = (io) => {
         socket.on('send-message', async (data) => {
             try {
                 const { chatId, senderId, content } = data;
+                console.log('[CHAT SOCKET] Sending message:', data);
                 const message = await chatService.sendMessage(chatId, senderId, content);
                 
                 // Get updated chat history
