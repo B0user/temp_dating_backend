@@ -4,8 +4,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 exports.createPaymentIntent = async (req, res) => {
   try {
     const { amount, currency, description } = req.body;
+    const userId = req.headers['x-user-id'];
     const result = await walletService.createPaymentIntent(
-      req.user._id,
+      userId,
       amount,
       currency,
       description
@@ -26,8 +27,10 @@ exports.createPaymentIntent = async (req, res) => {
 exports.purchaseCoins = async (req, res) => {
   try {
     const { amount, type } = req.body;
+    const userId = req.headers['x-user-id'];
+    
     const result = await walletService.purchaseCoins(
-      req.user._id,
+      userId,
       amount,
       type
     );
@@ -47,8 +50,9 @@ exports.purchaseCoins = async (req, res) => {
 exports.getUserTransactions = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
+    const userId = req.headers['x-user-id'];
     const result = await walletService.getUserTransactions(
-      req.user._id,
+      userId,
       parseInt(page),
       parseInt(limit)
     );
@@ -68,8 +72,9 @@ exports.getUserTransactions = async (req, res) => {
 exports.createSubscription = async (req, res) => {
   try {
     const { plan, paymentMethod } = req.body;
+    const userId = req.headers['x-user-id'];
     const result = await walletService.createSubscription(
-      req.user._id,
+      userId,
       plan,
       paymentMethod
     );
@@ -88,7 +93,8 @@ exports.createSubscription = async (req, res) => {
 
 exports.getUserSubscription = async (req, res) => {
   try {
-    const subscription = await walletService.getUserSubscription(req.user._id);
+    const userId = req.headers['x-user-id'];
+    const subscription = await walletService.getUserSubscription(userId);
 
     res.status(200).json({
       status: 'success',
@@ -106,6 +112,7 @@ exports.getUserSubscription = async (req, res) => {
 
 exports.handleWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
+  const userId = req.headers['x-user-id'];
   let event;
 
   try {
@@ -122,7 +129,7 @@ exports.handleWebhook = async (req, res) => {
   switch (event.type) {
     case 'payment_intent.succeeded':
       const paymentIntent = event.data.object;
-      await walletService.handleSuccessfulPayment(paymentIntent.id);
+      await walletService.handleSuccessfulPayment(paymentIntent.id, userId);
       break;
     case 'customer.subscription.updated':
     case 'customer.subscription.deleted':

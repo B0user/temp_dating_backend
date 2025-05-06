@@ -27,7 +27,7 @@ const registrationSchema = z.object({
   interests: z.array(z.string()),
   photos: z.array(z.string()).optional(),
   audioMessage: z.string().optional(),
-  friendInviteId: z.string().optional()
+  invite_id: z.string().optional()
 });
 
 class AuthService {
@@ -153,12 +153,12 @@ class AuthService {
 
       // Process friend invite if provided
       let inviteRewards = null;
-      if (registrationData.friendInviteId) {
+      if (registrationData.invite_id) {
         const FriendInviteService = require('./friendinvite.service');
         try {
-          const inviteCode = await FriendInviteService.generateInviteCode(registrationData.friendInviteId);
+          const inviteCode = await FriendInviteService.generateInviteCode(registrationData.invite_id);
           inviteRewards = await FriendInviteService.processInvite({
-            inviterId: registrationData.friendInviteId,
+            inviterId: registrationData.invite_id,
             inviteeId: user._id,
             inviteCode
           });
