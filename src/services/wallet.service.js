@@ -249,8 +249,11 @@ class WalletService {
         amount,
         type
       });
+      console.log('userId', userId);
 
       const user = await User.findById(userId);
+      console.log('user', user);
+      
       if (!user) {
         throw new Error('User not found');
       }

@@ -274,7 +274,8 @@ exports.deletePhoto = async (req, res) => {
 exports.updateMainInfo = async (req, res) => {
   try {
     const { name, gender, wantToFind, birthDay, country, city, latitude, longitude } = req.body;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in updateMainInfo', userId);
     
     // Find user by ID
     const user = await User.findById(userId);
@@ -353,7 +354,8 @@ exports.updateMainInfo = async (req, res) => {
 exports.updateAudio = async (req, res) => {
   try {
     const { telegramId } = req.body;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in updateAudio', userId);
     let uploadedAudio = null;
 
     // Find user by telegramId

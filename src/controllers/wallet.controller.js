@@ -4,7 +4,9 @@ const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 exports.createPaymentIntent = async (req, res) => {
   try {
     const { amount, currency, description } = req.body;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in createPaymentIntent', userId);
+    
     const result = await walletService.createPaymentIntent(
       userId,
       amount,
@@ -27,7 +29,8 @@ exports.createPaymentIntent = async (req, res) => {
 exports.purchaseCoins = async (req, res) => {
   try {
     const { amount, type } = req.body;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in purchaseCoins', userId);
     
     const result = await walletService.purchaseCoins(
       userId,
@@ -50,7 +53,9 @@ exports.purchaseCoins = async (req, res) => {
 exports.getUserTransactions = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in getUserTransactions', userId);
+    
     const result = await walletService.getUserTransactions(
       userId,
       parseInt(page),
@@ -72,7 +77,9 @@ exports.getUserTransactions = async (req, res) => {
 exports.createSubscription = async (req, res) => {
   try {
     const { plan, paymentMethod } = req.body;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in createSubscription', userId);
+    
     const result = await walletService.createSubscription(
       userId,
       plan,
@@ -93,7 +100,9 @@ exports.createSubscription = async (req, res) => {
 
 exports.getUserSubscription = async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in getUserSubscription', userId);
+    
     const subscription = await walletService.getUserSubscription(userId);
 
     res.status(200).json({
@@ -112,7 +121,8 @@ exports.getUserSubscription = async (req, res) => {
 
 exports.handleWebhook = async (req, res) => {
   const sig = req.headers['stripe-signature'];
-  const userId = req.headers['x-user-id'];
+  const userId = req.user.id;
+  console.log('userId in handleWebhook', userId);
   let event;
 
   try {

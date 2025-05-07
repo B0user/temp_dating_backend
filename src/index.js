@@ -8,6 +8,7 @@ const multer = require('multer');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const setupChatSocket = require('./sockets/chat.socket');
+// const setupStreamSocket = require('./sockets/stream.socket');
 const path = require('path');
 
 // Import routes
@@ -58,7 +59,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/auth', authRoutes);
 
-// app.use(authMiddleware);
+app.use(authMiddleware);
 
 app.use('/users', userRoutes);
 app.use('/chats', chatRoutes);
@@ -86,6 +87,7 @@ const io = new Server(httpServer, {
   allowEIO3: true
 });
 setupChatSocket(io);
+// setupStreamSocket(io);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

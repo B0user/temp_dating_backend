@@ -3,7 +3,8 @@ const chatService = require('../services/chat.service');
 exports.getUserChats = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in getUserChats', userId);
     const result = await chatService.getUserChats(userId, parseInt(page), parseInt(limit));
 
     res.status(200).json({
@@ -21,7 +22,8 @@ exports.getUserChats = async (req, res) => {
 exports.getChatHistory = async (req, res) => {
   try {
     const { page = 1, limit = 50 } = req.query;
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in getChatHistory', userId);
     const result = await chatService.getChatHistory(
       req.params.chatId,
       userId,
@@ -43,7 +45,8 @@ exports.getChatHistory = async (req, res) => {
 
 exports.sendMessage = async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in sendMessage', userId);
     const message = await chatService.sendMessage(
       req.params.chatId,
       userId,
@@ -66,7 +69,8 @@ exports.sendMessage = async (req, res) => {
 
 exports.markAsRead = async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in markAsRead', userId);
     
     if (!userId) {
       return res.status(400).json({
@@ -91,7 +95,8 @@ exports.markAsRead = async (req, res) => {
 
 exports.updateTypingStatus = async (req, res) => {
   try {
-    const userId = req.headers['x-user-id'];
+    const userId = req.user.id;
+    console.log('userId in updateTypingStatus', userId);
     
     if (!userId) {
       return res.status(400).json({
