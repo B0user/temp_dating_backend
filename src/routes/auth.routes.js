@@ -17,6 +17,9 @@ router.post('/validate', authController.validateToken);
 // Verify token
 router.get('/verify', authController.verifyToken);
 
+// Refresh token
+router.post('/refresh', authController.refreshToken);
+
 // Logout
 router.post('/logout', authController.logout);
 

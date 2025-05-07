@@ -32,6 +32,8 @@ router.put('/updatePhotos', userController.updatePhotos);
 router.put('/updateInterests', userController.updateInterests);
 // Update meet goal
 router.put('/updateMeetGoal', userController.updateMeetGoal);
+// Update filters
+router.put('/updateFilters', userController.updateFilters);
 
 
 // Delete photo

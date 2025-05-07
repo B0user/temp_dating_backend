@@ -192,11 +192,8 @@ class MatchService {
     return age;
   }
 
-  async getPotentialMatches(userId, page = 1, limit = 20) {
+  async getPotentialMatches(userId, filters, page = 1, limit = 20) {
     try {
-      // console.log('=== getPotentialMatches Debug ===');
-      // console.log('Using userId:', userId);
-      
       if (!userId) {
         console.error('Error: userId is required but not provided');
         throw new Error('User ID is required');
@@ -205,7 +202,6 @@ class MatchService {
       // Ensure userId is a valid ObjectId
       if (!mongoose.Types.ObjectId.isValid(userId)) {
         console.error('Invalid user ID format:', userId);
-        console.error('Expected 24-character hex string, got:', userId.length, 'characters');
         throw new Error(`Invalid user ID format. Expected 24-character hex string, got ${userId.length} characters`);
       }
 
@@ -223,8 +219,6 @@ class MatchService {
         users: userObjectId
       }).select('users');
 
-      // console.log('Existing matches count:', existingMatches.length);
-
       const excludedUserIds = [
         userObjectId,
         ...existingMatches.map(match => 
@@ -232,34 +226,36 @@ class MatchService {
         )
       ];
 
-      // Build query based on user preferences
+      // Build query based on filters
       const query = {
         _id: { $nin: excludedUserIds },
-        gender: user.wantToFind === 'all' ? { $in: ['male', 'female'] } : user.wantToFind,
-        birthDay: {
-          $lte: new Date(new Date().setFullYear(new Date().getFullYear() - user.preferences.ageRange.min)),
-          $gte: new Date(new Date().setFullYear(new Date().getFullYear() - user.preferences.ageRange.max))
-        }
+        gender: filters.gender === 'all' ? { $in: ['male', 'female'] } : filters.gender
       };
 
+      // Add age range filter
+      if (filters.ageRange) {
+        query.birthDay = {
+          $lte: new Date(new Date().setFullYear(new Date().getFullYear() - filters.ageRange.min)),
+          $gte: new Date(new Date().setFullYear(new Date().getFullYear() - filters.ageRange.max))
+        };
+      }
+
       // Add distance filter if location is available
-      if (user.latitude && user.longitude) {
+      if (user.latitude && user.longitude && filters.distance) {
         query.location = {
           $geoWithin: {
             $centerSphere: [
               [user.longitude, user.latitude],
-              user.preferences.distance / 6378.1 // Convert km to radians
+              filters.distance / 6378.1 // Convert km to radians
             ]
           }
         };
       }
 
-      // Add gender preference filter
-      if (user.preferences.gender !== 'other') {
-        query.gender = user.preferences.gender;
+      // Add interests filter if specified
+      if (filters.interests && filters.interests.length > 0) {
+        query.interests = { $in: filters.interests };
       }
-
-      // console.log('Query for potential matches:', JSON.stringify(query, null, 2));
 
       // First get total count
       const total = await User.countDocuments(query);
@@ -291,9 +287,6 @@ class MatchService {
         return userObj;
       }));
 
-      // console.log('Found potential matches:', usersWithSignedPhotos.length);
-      // console.log('=== End getPotentialMatches Debug ===');
-
       return {
         users: usersWithSignedPhotos,
         page,
@@ -302,7 +295,7 @@ class MatchService {
       };
     } catch (error) {
       console.error('Error in getPotentialMatches:', error);
-      throw error; // Re-throw the original error to preserve the error message
+      throw error;
     }
   }
 

@@ -616,4 +616,27 @@ exports.deleteUser = async (req, res) => {
     }
     res.status(500).json({ error: error.message });
   }
+};
+
+exports.updateFilters = async (req, res) => {
+  try {
+    const { telegramId, filters } = req.body;
+    
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Update user's filters
+    user.filters = filters;
+    await user.save();
+
+    res.status(200).json({
+      message: 'Filters updated successfully',
+      filters: user.filters
+    });
+  } catch (error) {
+    console.error('Error updating filters:', error);
+    res.status(500).json({ message: 'Error updating filters' });
+  }
 }; 

@@ -354,6 +354,35 @@ class AuthService {
     const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
     return passwordRegex.test(password);
   }
+
+  async refreshToken(token) {
+    try {
+      // Verify the token without checking expiration
+      const decoded = jwt.verify(token, this.jwtSecret, { ignoreExpiration: true });
+      
+      // Find the user
+      const user = await User.findById(decoded.userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      // Generate a new token
+      const newToken = this.generateToken(user);
+
+      // Generate presigned URLs for photos
+      const photoUrls = await Promise.all(
+        user.photos.map(photo => generatePresignedUrl(photo))
+      );
+      user.photos = photoUrls;
+
+      return {
+        newToken,
+        user: user.toObject()
+      };
+    } catch (error) {
+      throw new Error('Invalid token');
+    }
+  }
 }
 
 module.exports = new AuthService(); 

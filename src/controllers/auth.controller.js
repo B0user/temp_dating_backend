@@ -84,6 +84,34 @@ exports.verifyToken = async (req, res) => {
   }
 };
 
+exports.refreshToken = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({
+        status: 'error',
+        message: 'No token provided'
+      });
+    }
+
+    const token = authHeader.split(' ')[1];
+    const { newToken, user } = await authService.refreshToken(token);
+
+    res.status(200).json({
+      status: 'success',
+      data: {
+        token: newToken,
+        user
+      }
+    });
+  } catch (error) {
+    res.status(401).json({
+      status: 'error',
+      message: error.message || 'Invalid token'
+    });
+  }
+};
+
 exports.logout = async (req, res) => {
   try {
     // In a real implementation, you might want to:
