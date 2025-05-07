@@ -160,6 +160,41 @@ const userSchema = new Schema({
       default: 'other'
     }
   },
+  filters: {
+    targetGender: {
+      type: String,
+      enum: ['male', 'female', 'all'],
+      default: 'all'
+    },
+    purpose: {
+      type: String,
+      trim: true
+    },
+    interests: [{
+      type: String,
+      trim: true
+    }],
+    ageRange: {
+      min: {
+        type: Number,
+        default: 18
+      },
+      max: {
+        type: Number,
+        default: 100
+      }
+    },
+    distanceRange: {
+      min: {
+        type: Number,
+        default: 0
+      },
+      max: {
+        type: Number,
+        default: 100
+      }
+    }
+  },
   lastActive: {
     type: Date,
     default: Date.now
