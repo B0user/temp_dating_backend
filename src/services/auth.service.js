@@ -78,8 +78,6 @@ class AuthService {
 
   async register(registrationData, files) {
     try {
-      console.log('=== Auth Service Registration Debug ===');
-      console.log('Files:', files);
 
       if (!registrationData) {
         throw new Error('No registration data provided');
@@ -177,14 +175,10 @@ class AuthService {
           // Process photos
           const photos = files.filter(file => file.fieldname === 'photos');
           if (photos.length > 0) {
-            console.log('Processing photos...');
             for (const photo of photos) {
               if (photo && photo.buffer) {
-                console.log('Processing photo:', photo.originalname);
                 const key = generateMediaKey(userData.telegramId, 'photos', photo.originalname);
-                console.log('Photo key:', key);
                 const url = await uploadToS3(photo, key);
-                console.log('Photo URL:', url);
                 uploadedPhotos.push({ key, url });
               }
             }
@@ -193,11 +187,8 @@ class AuthService {
           // Process audio message
           const audioMessage = files.find(file => file.fieldname === 'audioMessage');
           if (audioMessage && audioMessage.buffer) {
-            console.log('Processing audio message...');
             const key = generateMediaKey(userData.telegramId, 'audio', audioMessage.originalname);
-            console.log('Audio key:', key);
             const url = await uploadToS3(audioMessage, key);
-            console.log('Audio URL:', url);
             uploadedAudio = { key, url };
           }
 
@@ -281,14 +272,11 @@ class AuthService {
   }
 
   async login(telegramId) {
-    console.log('Login attempt for telegramId:', telegramId);
     const user = await User.findOne({ telegramId });
     if (!user) {
-      console.error('User not found for telegramId:', telegramId);
       throw new Error('User not found');
     }
 
-    // console.log('User found:', user._id);
 
     // Generate presigned URLs for photos
     const photoUrls = await Promise.all(
@@ -298,7 +286,6 @@ class AuthService {
 
     // Generate JWT token
     const token = await this.generateToken(user);
-    // console.log('Token generated for user:', user._id);
 
     return { 
       user: user.toObject(), 
@@ -327,14 +314,11 @@ class AuthService {
       throw new Error('JWT_SECRET is not configured');
     }
 
-    // console.log('Generating token for user:', user._id);
-    const token = jwt.sign(
+    return jwt.sign(
       { userId: user._id },
       this.jwtSecret,
-      { expiresIn: this.jwtExpiresIn || '7d' }
+      { expiresIn: this.jwtExpiresIn || '365d' }
     );
-    // console.log('Token generated successfully');
-    return token;
   }
 
   async hashPassword(password) {
@@ -383,6 +367,10 @@ class AuthService {
       throw new Error('Invalid token');
     }
   }
+
+  
 }
+
+
 
 module.exports = new AuthService(); 

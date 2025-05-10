@@ -10,6 +10,10 @@ const likeSchema = z.object({
   like: z.boolean()
 });
 
+const superLikeSchema = z.object({
+  targetUserId: z.string()
+});
+
 class MatchService {
   async likeUser(userId, targetUserId, like) {
     try {
@@ -322,6 +326,113 @@ class MatchService {
       };
     } catch (error) {
       throw new Error('Error getting user matches');
+    }
+  }
+
+  async superLikeUser(userId, targetUserId) {
+    try {
+      const validatedData = superLikeSchema.parse({
+        targetUserId
+      });
+
+      // Check if users exist
+      const [user, targetUser] = await Promise.all([
+        User.findById(userId),
+        User.findById(targetUserId)
+      ]);
+
+      if (!user || !targetUser) {
+        throw new Error('User not found');
+      }
+
+      // Check if match already exists
+      let match = await Match.findOne({
+        users: { $all: [userId, targetUserId] }
+      });
+
+      if (match) {
+        // Update existing match with super like
+        match.superLikes = match.superLikes || [];
+        match.superLikes.push({
+          user: userId,
+          timestamp: new Date()
+        });
+        
+        // Check if both users have liked each other
+        const hasMutualLike = match.likes.some(like => 
+          like.user.equals(targetUserId)
+        );
+
+        if (hasMutualLike) {
+          match.status = 'matched';
+          // Create chat for matched users
+          await this.createChatForMatch(match);
+        }
+      } else {
+        // Create new match with super like
+        match = await Match.create({
+          users: [userId, targetUserId],
+          superLikes: [{
+            user: userId,
+            timestamp: new Date()
+          }],
+          status: 'pending'
+        });
+      }
+
+      await match.save();
+      return match;
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        throw new Error('Invalid super like data');
+      }
+      throw error;
+    }
+  }
+
+  async returnProfile(userId, targetUserId) {
+    try {
+      // Check if users exist
+      const [user, targetUser] = await Promise.all([
+        User.findById(userId),
+        User.findById(targetUserId)
+      ]);
+
+      if (!user || !targetUser) {
+        throw new Error('User not found');
+      }
+
+      // Find the match
+      const match = await Match.findOne({
+        users: { $all: [userId, targetUserId] }
+      });
+
+      if (!match) {
+        throw new Error('Match not found');
+      }
+
+      // Add return to the match
+      match.returns = match.returns || [];
+      match.returns.push({
+        user: userId,
+        timestamp: new Date()
+      });
+
+      // If the target user has already liked, create a match
+      const hasTargetLike = match.likes.some(like => 
+        like.user.equals(targetUserId)
+      );
+
+      if (hasTargetLike) {
+        match.status = 'matched';
+        // Create chat for matched users
+        await this.createChatForMatch(match);
+      }
+
+      await match.save();
+      return match;
+    } catch (error) {
+      throw error;
     }
   }
 }

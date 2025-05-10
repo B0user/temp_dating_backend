@@ -130,3 +130,89 @@ exports.logout = async (req, res) => {
     });
   }
 };
+
+exports.adminLogin = async (req, res) => {
+  try {
+    console.log('Admin login request received');
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      console.log('Missing username or password');
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const { admin, token } = await authService.adminLogin(username, password);
+    console.log('Admin login successful, sending response');
+    res.json({ admin, token });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    res.status(401).json({ error: error.message });
+  }
+};
+
+exports.adminLogout = async (req, res) => {
+  try {
+    console.log('Admin logout request received');
+    const token = req.headers.authorization?.split(' ')[1];
+    
+    if (!token) {
+      console.log('No token provided for logout');
+      return res.status(401).json({ error: 'No token provided' });
+    }
+
+    await authService.adminLogout(token);
+    console.log('Admin logout successful');
+    res.status(200).json({
+      status: 'success',
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Admin logout error:', error);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error during logout'
+    });
+  }
+};
+
+exports.adminRefresh = async (req, res) => {
+  try {
+    console.log('Admin refresh token request received');
+    const { token } = req.body;
+    
+    if (!token) {
+      console.log('No token provided for refresh');
+      return res.status(401).json({ error: 'Token is required' });
+    }
+
+    const { newToken, admin } = await authService.adminRefresh(token);
+    console.log('Admin token refresh successful');
+    res.json({ token: newToken, admin });
+  } catch (error) {
+    console.error('Admin refresh token error:', error);
+    res.status(401).json({ error: error.message });
+  }
+};
+
+exports.adminCreateUser = async (req, res) => {
+  try {
+    console.log('Admin create user request received');
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      console.log('Missing username or password for admin creation');
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const { admin, token } = await authService.adminCreateUser(username, password);
+    console.log('Admin user created successfully');
+    res.status(201).json({ admin, token });
+  } catch (error) {
+    console.error('Admin create user error:', error);
+    if (error.message.includes('already exists')) {
+      res.status(409).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: error.message });
+    }
+  }
+};

@@ -11,4 +11,10 @@ router.get('/', matchController.getUserMatches);
 // Like/dislike user
 router.post('/:targetUserId', matchController.likeUser);
 
+// Super like user
+router.post('/:targetUserId/super-like', matchController.superLikeUser);
+
+// Return profile
+router.post('/:targetUserId/return', matchController.returnProfile);
+
 module.exports = router; 

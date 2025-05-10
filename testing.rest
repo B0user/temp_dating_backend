@@ -1,178 +1,74 @@
-###
-GET http://localhost:3001/users/get-user-id/2005
-
-
-
-### Register user (JSON format)
-POST http://localhost:3001/auth/register
-Content-Type: application/json
-
-{
-    "telegramId": "123456789",
-    "name": "Test User",
-    "gender": "male",
-    "wantToFind": "female",
-    "birthDay": "1990-01-01T00:00:00.000Z",
-    "country": "Russia",
-    "city": "Moscow",
-    "latitude": 55.7558,
-    "longitude": 37.6173,
-    "purpose": "Looking for a relationship",
-    "interests": ["sports", "music", "travel"],
-    "photos": [],
-    "audioMessage": null,
-    "isVerified": false,
-    "verification": {
-        "photo": null,
-        "status": "pending",
-        "reviewedBy": null,
-        "reviewedAt": null,
-        "reason": null
-    },
-    "wallet": {
-        "balance": 0,
-        "transactions": [],
-        "subscription": {
-            "type": "free",
-            "expiresAt": "2024-12-31T00:00:00.000Z"
-        }
-    },
-    "preferences": {
-        "ageRange": {
-            "min": 20,
-            "max": 35
-        },
-        "distance": 100,
-        "gender": "female"
-    }
-}
-
-### Register user (FormData format)
-POST http://localhost:3001/auth/register
-Content-Type: multipart/form-data
-
---boundary
-Content-Disposition: form-data; name="telegramId"
-
-123456789
---boundary
-Content-Disposition: form-data; name="name"
-
-Test User
---boundary
-Content-Disposition: form-data; name="gender"
-
-male
---boundary
-Content-Disposition: form-data; name="wantToFind"
-
-female
---boundary
-Content-Disposition: form-data; name="birthDay"
-
-1990-01-01T00:00:00.000Z
---boundary
-Content-Disposition: form-data; name="country"
-
-Russia
---boundary
-Content-Disposition: form-data; name="city"
-
-Moscow
---boundary
-Content-Disposition: form-data; name="latitude"
-
-55.7558
---boundary
-Content-Disposition: form-data; name="longitude"
-
-37.6173
---boundary
-Content-Disposition: form-data; name="purpose"
-
-Looking for a relationship
---boundary
-Content-Disposition: form-data; name="interests"
-
-["sports", "music", "travel"]
---boundary
-Content-Disposition: form-data; name="preferences"
-
-{"ageRange":{"min":20,"max":35},"distance":100,"gender":"female"}
---boundary--
-
 ### Login as user 2005
 POST http://localhost:3001/auth/login
 Content-Type: application/json
 
-{
-    "telegramId": "2005"
-}
+{"telegramId": "2005"}
 
 ### Login as user 1001
 POST http://localhost:3001/auth/login
 Content-Type: application/json
 
-{
-    "telegramId": "1001"
-}
+{"telegramId": "1001"}
 
-### Validate token (replace YOUR_TOKEN with actual token from login response)
-POST http://localhost:3001/auth/validate
-Content-Type: application/json
-
-{
-    "token": "YOUR_TOKEN"
-}
-
-### Get potential matches for user (with default preferences)
+### Get potential matches (requires auth)
 GET http://localhost:3001/matches/potential
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2ZiNzdhM2Y2YmNiMGRmOTYwNjQzN2IiLCJpYXQiOjE3NDY3MzExMTksImV4cCI6MTc3ODI2NzExOX0.4Wo9UOXjbJrQYBox6C-a-7GClyE2-0MhAuDPlfVR-qk
 Content-Type: application/json
-x-user-id: 67fba439cf98acec362a6a2f
 
-### Get potential matches with pagination
+### Get potential matches with pagination (requires auth)
 GET http://localhost:3001/matches/potential?page=2&limit=10
-Content-Type: application/json
-x-user-id: 67fba439cf98acec362a6a2f
-
-### Get potential matches with specific preferences (example)
-GET http://localhost:3001/matches/potential
-Content-Type: application/json
-x-user-id: 67fba439cf98acec362a6a2f
-
-{
-    "preferences": {
-        "ageRange": {
-            "min": 25,
-            "max": 35
-        },
-        "distance": 50,
-        "gender": "female"
-    }
-}
-
-### User 2005 likes user 1001
-POST http://localhost:3001/matches/67fba439cf98acec362a6a2f
+Authorization: Bearer {{user2005_token}}
 Content-Type: application/json
 
-{
-    "like": true,
-    "userId": "67fb77a3f6bcb0df9606437b"
-}
-
-### User 1001 likes user 2005
+### Like user (requires auth)
 POST http://localhost:3001/matches/67fb77a3f6bcb0df9606437b
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2ZiNzdhM2Y2YmNiMGRmOTYwNjQzN2IiLCJpYXQiOjE3NDY3MzExMTksImV4cCI6MTc3ODI2NzExOX0.4Wo9UOXjbJrQYBox6C-a-7GClyE2-0MhAuDPlfVR-qk
 Content-Type: application/json
 
 {
-    "like": true,
-    "userId": "67fba439cf98acec362a6a2f"
+    "like": true
 }
 
-### Get chats for user 2005
-GET http://localhost:3001/chats?userId=2005
+### Super like user (requires auth)
+POST http://localhost:3001/matches/67fb77a3f6bcb0df9606437b/super-like
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2ZiNzdhM2Y2YmNiMGRmOTYwNjQzN2IiLCJpYXQiOjE3NDY3MzExMTksImV4cCI6MTc3ODI2NzExOX0.4Wo9UOXjbJrQYBox6C-a-7GClyE2-0MhAuDPlfVR-qk
+Content-Type: application/json
 
-### Get chats for user 1001
-GET http://localhost:3001/chats?userId=1001
+### Return to profile (requires auth)
+POST http://localhost:3001/matches/67fb77a3f6bcb0df9606437b/return
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2N2ZiNzdhM2Y2YmNiMGRmOTYwNjQzN2IiLCJpYXQiOjE3NDY3MzExMTksImV4cCI6MTc3ODI2NzExOX0.4Wo9UOXjbJrQYBox6C-a-7GClyE2-0MhAuDPlfVR-qk
+Content-Type: application/json
+
+### Test subscription limits - Free user
+# First super like (should succeed)
+POST http://localhost:3001/matches/67fb77a3f6bcb0df9606437b/super-like
+Authorization: Bearer {{user2005_token}}
+Content-Type: application/json
+
+# Second super like (should fail with limit error)
+POST http://localhost:3001/matches/67fb77a3f6bcb0df9606437b/super-like
+Authorization: Bearer {{user2005_token}}
+Content-Type: application/json
+
+### Test subscription limits - Premium user
+# First return (should succeed)
+POST http://localhost:3001/matches/67fba439cf98acec362a6a2f/return
+Authorization: Bearer {{user1001_token}}
+Content-Type: application/json
+
+# Second return (should succeed for premium)
+POST http://localhost:3001/matches/67fba439cf98acec362a6a2f/return
+Authorization: Bearer {{user1001_token}}
+Content-Type: application/json
+
+### Get user's matches (requires auth)
+GET http://localhost:3001/matches
+Authorization: Bearer {{user2005_token}}
+Content-Type: application/json
+
+### Get user's chats (requires auth)
+GET http://localhost:3001/chats
+Authorization: Bearer {{user2005_token}}
+Content-Type: application/json
 
 ###

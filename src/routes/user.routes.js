@@ -1,7 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { isAdmin } = require('../middleware/admin.middleware');
 const userController = require('../controllers/user.controller');
+
+
 
 // Register route with file uploads
 router.post('/register', userController.register);
@@ -17,7 +18,6 @@ router.get('/profile', userController.getProfile);
 // Get user by ID (admin only)
 router.get('/:userId', userController.getUserById);
 // Get all users (admin only)
-router.get('/', isAdmin, userController.getAllUsers);
 
 
 // Update user profile
@@ -34,7 +34,6 @@ router.put('/updateInterests', userController.updateInterests);
 router.put('/updateMeetGoal', userController.updateMeetGoal);
 // Update filters
 router.put('/updateFilters', userController.updateFilters);
-
 
 // Delete photo
 router.delete('/photo', userController.deletePhoto);

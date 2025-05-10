@@ -2,6 +2,12 @@ const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/auth.controller');
 
+// Admin routes
+router.post('/admin/login', authController.adminLogin);
+router.post('/admin/logout', authController.adminLogout);
+router.post('/admin/refresh', authController.adminRefresh);
+router.post('/admin/create', authController.adminCreateUser);
+
 // Telegram login
 router.post('/telegram', authController.telegramLogin);
 

@@ -1,6 +1,13 @@
-const isAdmin = (req, res, next) => {
+const adminService = require('../services/admin.service');
+
+const isAdmin = async (req, res, next) => {
   try {
-    if (!req.user || !req.user.isAdmin) {
+    console.log('isAdmin middleware');
+    console.log('Admin token:', req.headers.authorization);
+    const token = req.headers.authorization.split(' ')[1];
+    const decoded = await adminService.verifyToken(token);
+    console.log('Decoded token:', decoded);
+    if (!decoded) {
       return res.status(403).json({ 
         success: false, 
         message: 'Access denied. Admin privileges required.' 

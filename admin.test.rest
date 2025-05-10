@@ -1,0 +1,28 @@
+### Create admin
+POST http://localhost:3001/admin
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": "admin"
+}
+
+### Login as admin
+POST http://localhost:3001/admin/login
+Content-Type: application/json
+
+{
+    "username": "admin",
+    "password": "admin"
+}
+
+### Get all users
+GET http://localhost:3001/admin/users
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODFmNGJmNjM2NTBmYTgwMjdmNmVmMmMiLCJpYXQiOjE3NDY4ODc5MTMsImV4cCI6MTc3ODQyMzkxM30.U41SFnO-KJLoq3pOCXej84_FHATkdMe4BeAzXqvlmhk
+
+
+### Get user "asd"
+GET http://localhost:3001/admin/users/681d0355bfe453f6ab34f160
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2ODFmNGJmNjM2NTBmYTgwMjdmNmVmMmMiLCJpYXQiOjE3NDY4ODc5MTMsImV4cCI6MTc3ODQyMzkxM30.U41SFnO-KJLoq3pOCXej84_FHATkdMe4BeAzXqvlmhk
+
+###

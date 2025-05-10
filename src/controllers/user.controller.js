@@ -640,3 +640,76 @@ exports.updateFilters = async (req, res) => {
     res.status(500).json({ message: 'Error updating filters' });
   }
 }; 
+
+exports.verifyUser = async (req, res) => {
+  try {
+    console.log("SHIIIIIIII");
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isVerified = true;
+
+    await user.save();
+
+    res.status(200).json({ message: 'User verified successfully' });
+  } catch (error) {
+    console.error('Error verifying user:', error);
+    res.status(500).json({ message: 'Error verifying user' });
+  }
+};
+
+exports.rejectUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.isVerified = false;
+
+    await user.save();
+
+    res.status(200).json({ message: 'User rejected successfully' });
+  } catch (error) {
+    console.error('Error rejecting user:', error);
+    res.status(500).json({ message: 'Error rejecting user' });
+  }
+};
+
+exports.updateUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { userData } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.name = userData.name;
+    user.gender = userData.gender;
+    user.wantToFind = userData.wantToFind;
+    user.birthDay = userData.birthDay;
+    user.country = userData.country;
+    user.city = userData.city;
+    user.latitude = userData.latitude;
+    user.longitude = userData.longitude;
+    user.purpose = userData.purpose;
+    user.interests = userData.interests;
+    user.photos = userData.photos;
+    user.audioMessage = userData.audioMessage;
+
+    await user.save();
+
+    res.status(200).json({ message: 'User updated successfully' });
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ message: 'Error updating user' });
+  }
+};

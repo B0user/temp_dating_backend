@@ -13,6 +13,7 @@ const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
+const adminRoutes = require('./routes/admin.routes');
 const userRoutes = require('./routes/user.routes');
 const mediaRoutes = require('./routes/media.routes');
 const chatRoutes = require('./routes/chat.routes');
@@ -57,7 +58,9 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use('/auth', authRoutes);
+// app.use('/auth', authRoutes);
+app.use('/admin', adminRoutes);
+
 
 app.use(authMiddleware);
 
