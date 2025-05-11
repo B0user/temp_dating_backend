@@ -14,6 +14,7 @@ router.post('/refresh', adminController.adminRefresh);
 // router.post('/users/bots', isAdmin, adminController.getAllUsers);
 router.post('/users/:userId/verify', isAdmin, userController.verifyUser);
 router.post('/users/:userId/reject', isAdmin, userController.rejectUser);
+router.put('/users/:userId/ban', isAdmin, userController.updateUserBanStatus);
 router.get('/users', isAdmin, userController.getAllUsers);
 router.get('/users/:userId', isAdmin, userController.getUserById);
 router.put('/users/:userId', isAdmin, userController.updateUser);

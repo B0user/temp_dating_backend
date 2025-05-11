@@ -181,6 +181,16 @@ const userSchema = new Schema({
     type: Boolean,
     default: false
   },
+  banStatus: {
+    ban: {
+      type: Boolean,
+      default: false
+    },
+    history: [{
+      reason: String,
+      date: Date
+    }]
+  },
   verification: {
     photo: {
       type: String, // S3 key for verification photo

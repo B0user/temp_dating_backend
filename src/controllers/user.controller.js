@@ -599,6 +599,7 @@ exports.getUserById = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
+    console.log("SHIIII 1");
     const result = await userService.getAllUsers(page, limit);
     res.json(result);
   } catch (error) {
@@ -643,7 +644,6 @@ exports.updateFilters = async (req, res) => {
 
 exports.verifyUser = async (req, res) => {
   try {
-    console.log("SHIIIIIIII");
     const { userId } = req.params;
 
     const user = await User.findById(userId);
@@ -661,6 +661,36 @@ exports.verifyUser = async (req, res) => {
     res.status(500).json({ message: 'Error verifying user' });
   }
 };
+
+exports.updateUserBanStatus = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { ban, reason } = req.body;
+    console.log("BAN SUKA");
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    user.banStatus.ban = ban;
+
+    if (reason) {
+      user.banStatus.history.push({
+        reason,
+        date: new Date()
+      });
+    }
+
+    await user.save();
+
+    res.status(200).json({ message: 'User ban status updated successfully' });
+  } catch (error) {
+    console.error('Error updating user ban status:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+
 
 exports.rejectUser = async (req, res) => {
   try {
