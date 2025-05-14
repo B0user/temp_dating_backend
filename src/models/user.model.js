@@ -1,117 +1,6 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const userSchemaNew = new Schema({
-  account_information: {
-    telegramId: {
-      type: String,
-      unique: true,
-      trim: true
-    },
-    media: {
-      photos: [{
-        type: String,
-      }],
-      audioMessage: {
-        type: String,
-      },
-    },
-    wallet: {
-    },
-    verification: {
-    },
-    lastActive: {
-      type: Date,
-      default: Date.now
-    },
-  },
-  personal_information: {
-    name: {
-      type: String,
-      trim: true
-    },
-    gender: {
-      type: String,
-      enum: ['male', 'female', 'other'],
-      default: 'other'
-    },
-    birthDay: {
-      type: Date,
-    },
-    location_general: {
-      country: {
-        type: String,
-        trim: true
-      },
-      city: {
-        type: String,
-        trim: true
-      },
-      location: {
-        type: { 
-          type: String,
-          enum: ['Point'],
-          required: true
-        },
-        coordinates: {
-          type: [Number],
-          required: true
-        }
-      },
-    },
-    purpose: {
-      type: String,
-      trim: true
-    },
-    interests: [{
-      type: String,
-      trim: true
-    }]
-  },
-  match_preferences: {
-    preferences: {
-      ageRange: {
-        min: {
-          type: Number,
-          default: 18
-        },
-        max: {
-          type: Number,
-          default: 100
-        }
-      },
-      distance: {
-        type: Number,
-        default: 50
-      },
-      gender: {
-        type: String,
-        enum: ['male', 'female', 'all'],
-        default: 'other'
-      }
-    },
-    filters: {
-      targetGender: {
-        type: String,
-        enum: ['male', 'female', 'all'],
-        default: 'all'
-      },
-      purpose: {
-        type: String,
-        trim: true
-      },
-      interests: [{
-        type: String,
-        trim: true
-      }],
-    },
-  },
-  createdAt: {
-    type: Date,
-    default: Date.now
-  }
-  
-});
 
 const userSchema = new Schema({
   telegramId: {
@@ -216,6 +105,9 @@ const userSchema = new Schema({
     }
   },
   wallet: {
+    ton_wallet: {
+      type: String
+    },
     coins: {
       type: Number,
       default: 0

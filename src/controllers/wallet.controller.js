@@ -1,6 +1,36 @@
 const walletService = require('../services/wallet.service');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
+exports.saveTonWallet = async (req, res) => {
+  try {
+    const { wallet } = req.body;
+    const userId = req.user.id;
+    console.log('userId in connect wallet', userId, "wallet ", wallet);
+    
+    if (!wallet || !userId) {
+      res.status(400).json({
+        status: 'error',
+        message: "wallet and/or userId are missing"
+      });
+      return;
+    }
+    
+    const result = await walletService.saveTonWallet(
+      userId,
+      wallet
+    );
+
+    res.status(200).json({
+      status: 'success',
+      data: result
+    });
+  } catch (error) {
+    res.status(400).json({
+      status: 'error',
+      message: error.message
+    });
+  }
+};
 exports.createPaymentIntent = async (req, res) => {
   try {
     const { amount, currency, description } = req.body;

@@ -10,6 +10,7 @@ router.post('/', adminController.adminCreateUser);
 router.post('/login', adminController.adminLogin);
 router.post('/logout', adminController.adminLogout);
 router.post('/refresh', adminController.adminRefresh);
+router.post('/users/upload', userController.uploadByJSON);
 
 // router.post('/users/bots', isAdmin, adminController.getAllUsers);
 router.post('/users/:userId/verify', isAdmin, userController.verifyUser);

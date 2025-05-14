@@ -312,6 +312,22 @@ class WalletService {
       throw new Error('Error getting user balance');
     }
   }
+
+  async saveTonWallet(userId, wallet) {
+    try {
+      const user = await User.findById(userId);
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      user.wallet.ton_wallet = wallet;
+
+      user.save();
+      return true;
+    } catch (error) {
+      throw new Error('Error getting user balance');
+    }
+  }
 }
 
 module.exports = new WalletService(); 

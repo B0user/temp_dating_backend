@@ -599,7 +599,6 @@ exports.getUserById = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const { page = 1, limit = 20 } = req.query;
-    console.log("SHIIII 1");
     const result = await userService.getAllUsers(page, limit);
     res.json(result);
   } catch (error) {
@@ -743,3 +742,29 @@ exports.updateUser = async (req, res) => {
     res.status(500).json({ message: 'Error updating user' });
   }
 };
+
+exports.uploadByJSON = async (req, res) => {
+  try {
+    const users = req.body;
+
+    console.log(req.body);
+
+    if (!Array.isArray(users)) {
+      return res.status(400).json({ message: 'Input must be a JSON array of user objects' });
+    }
+
+    const insertedUsers = await User.insertMany(users);
+    res.status(201).json({
+      message: 'Users uploaded successfully',
+      count: insertedUsers.length,
+      users: insertedUsers
+    });
+  } catch (error) {
+    console.error('Error in uploadByJSON:', error);
+    res.status(500).json({
+      message: 'Error uploading users',
+      details: error.message
+    });
+  }
+};
+

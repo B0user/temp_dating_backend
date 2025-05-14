@@ -4,6 +4,7 @@ const walletController = require('../controllers/wallet.controller');
 
 // Create payment intent
 router.post('/payment-intent', walletController.createPaymentIntent);
+router.post('/ton', walletController.saveTonWallet);
 
 // Purchase coins
 router.post('/purchase', walletController.purchaseCoins);
