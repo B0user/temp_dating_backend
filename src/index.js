@@ -31,7 +31,7 @@ const httpServer = createServer(app);
 // Middleware
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.FRONTEND_URL 
+    ? ['https://admin.mytadating.site', 'https://mytadating.site'] 
     : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true
 }));
