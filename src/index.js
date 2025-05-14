@@ -8,12 +8,14 @@ const multer = require('multer');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const setupChatSocket = require('./sockets/chat.socket');
+const setupSupportSocket = require('./sockets/support.socket');
 // const setupStreamSocket = require('./sockets/stream.socket');
 const path = require('path');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
 const adminRoutes = require('./routes/admin.routes');
+const supportRoutes = require('./routes/support.routes');
 const userRoutes = require('./routes/user.routes');
 const mediaRoutes = require('./routes/media.routes');
 const chatRoutes = require('./routes/chat.routes');
@@ -28,7 +30,9 @@ const httpServer = createServer(app);
 
 // Middleware
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? process.env.FRONTEND_URL : 'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL 
+    : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true
 }));
 app.use(helmet());
@@ -58,18 +62,20 @@ app.use((req, res, next) => {
 });
 
 // Routes
-// app.use('/auth', authRoutes);
+app.use('/auth', authRoutes);
 app.use('/admin', adminRoutes);
 
+app.use('/support', supportRoutes);
 
 app.use(authMiddleware);
+
 
 app.use('/users', userRoutes);
 app.use('/chats', chatRoutes);
 app.use('/matches', matchRoutes);
+app.use('/wallet', walletRoutes);
 
 // app.use('/media', mediaRoutes);
-app.use('/wallet', walletRoutes);
 // app.use('/streams', streamRoutes);
 // app.use('/moderation', moderationRoutes);
 
@@ -90,6 +96,7 @@ const io = new Server(httpServer, {
   allowEIO3: true
 });
 setupChatSocket(io);
+setupSupportSocket(io);
 // setupStreamSocket(io);
 
 // Error handling middleware

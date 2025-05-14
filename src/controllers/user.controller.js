@@ -586,6 +586,7 @@ exports.updateProfile = async (req, res) => {
 
 exports.getUserById = async (req, res) => {
   try {
+    console.log('get users');
     const user = await userService.getUserById(req.params.userId);
     res.json(user);
   } catch (error) {

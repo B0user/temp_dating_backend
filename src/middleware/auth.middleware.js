@@ -3,6 +3,7 @@ const authService = require('../services/auth.service');
 const authMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
+    console.log(req.headers);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
