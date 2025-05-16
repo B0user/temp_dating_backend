@@ -76,7 +76,7 @@ app.use('/matches', matchRoutes);
 app.use('/wallet', walletRoutes);
 
 // app.use('/media', mediaRoutes);
-// app.use('/streams', streamRoutes);
+app.use('/streams', streamRoutes);
 // app.use('/moderation', moderationRoutes);
 
 // MongoDB Connection

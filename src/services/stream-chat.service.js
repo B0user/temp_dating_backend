@@ -129,6 +129,16 @@ class StreamChatService {
             throw error;
         }
     }
+
+    async getAllStreamerIds() {
+        try {
+          const streamerIds = await StreamChatMessage.distinct('userId', { role: 'streamer' });
+          return streamerIds; // array of unique streamer userIds
+        } catch (error) {
+          console.error('[StreamChatService] Error getting streamer IDs:', error);
+          throw error;
+        }
+    }     
 }
 
 module.exports = new StreamChatService(); 
