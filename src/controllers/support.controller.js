@@ -56,10 +56,9 @@ class SupportController {
         try {
             const { content } = req.body;
             const ticketId = req.params.id;
-            const userId = req.user._id;
-            const isAdmin = req.user.isAdmin;
+            const userId = req.user?._id;
 
-            const ticket = await supportService.addMessage(ticketId, userId, content, isAdmin);
+            const ticket = await supportService.addMessage(ticketId, userId, content);
             res.json(ticket);
         } catch (error) {
             res.status(500).json({ message: error.message });

@@ -46,7 +46,7 @@ class SupportService {
         return this.getTickets({ user: userId }, page, limit);
     }
 
-    async addMessage(ticketId, senderId, content, isAdmin = false) {
+    async addMessage(ticketId, senderId = "admin_id", content) {
         const ticket = await SupportTicket.findById(ticketId);
         if (!ticket) {
             throw new Error('Ticket not found');
@@ -54,8 +54,7 @@ class SupportService {
 
         ticket.messages.push({
             sender: senderId,
-            content,
-            isAdmin
+            content
         });
 
         // Update ticket status if it was closed
