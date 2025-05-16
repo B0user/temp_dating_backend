@@ -141,11 +141,11 @@ exports.returnProfile = async (req, res) => {
     // Check if user has reached their daily return limit
     await LimitsService.checkAndUpdateLimits(userId, 'return');
 
-    const result = await matchService.returnProfile(userId, targetUserId);
+    // const result = await matchService.returnProfile(userId, targetUserId);
 
     res.status(200).json({
       status: 'success',
-      data: result
+      // data: result
     });
   } catch (error) {
     res.status(400).json({

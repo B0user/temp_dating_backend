@@ -1,6 +1,7 @@
 const { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const logger = require('./logger');
+const sharp = require('sharp');
 
 // Validate AWS configuration
 const validateAWSConfig = () => {
@@ -49,20 +50,37 @@ const uploadToS3 = async (file, key) => {
       throw new Error('Invalid file object: missing buffer');
     }
 
-    const command = new PutObjectCommand({
+    console.log("START SHARP");
+
+    const buffer = await sharp(file.buffer)
+      .resize({ width: 1080 })
+      .webp({ quality: 50 })
+      .toBuffer();
+
+    console.log("AFTER ASYNC");
+    
+    console.log("New Method: optimized WebP buffer size =", buffer.length);
+
+    const imageName = `${key}.webp`;
+    console.log("New Method: Generated image name:", imageName);
+
+    const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
-      Key: key,
-      Body: file.buffer,
-      ContentType: file.mimetype
-    });
+      Key: imageName,
+      Body: buffer,
+      ContentType: "image/webp",
+    };
+
+
+    const command = new PutObjectCommand(params);
 
     console.log("COMMAND TO S3 ",command);
 
     await s3Client.send(command);
-    logger.info(`File uploaded successfully to S3: ${key}`);
+    logger.info(`File uploaded successfully to S3: ${imageName}`);
     
     // Return the full S3 URL
-    return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+    return `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${imageName}`;
   } catch (error) {
     logger.error('Error uploading to S3:', error);
     if (error.name === 'AccessControlListNotSupported') {
