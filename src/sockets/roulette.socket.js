@@ -69,19 +69,11 @@ module.exports = (io) => {
         });
 
         // End chat explicitly
-        socket.on('end_roulette_chat', async ({ roomId }) => {
-            console.log('end_roulette_chat');
+        socket.on('end_roulette_session', async ({ userId }) => {
+            console.log('end_roulette_session');
             try {
-                const session = rouletteService.getCurrentSession(socket.id);
-                if (session) {
-                    const result = await rouletteService.endSession(socket.id);
-                    if (result) {
-                        rouletteNamespace.to(roomId).emit('roulette_chat_ended', {
-                            reason: 'ended_by_user',
-                            streamId: result.streamId
-                        });
-                    }
-                }
+                const session = rouletteService.getCurrentSession(userId);
+                if (session) await rouletteService.endSession(userId);
             } catch (error) {
                 console.error('Error ending roulette chat:', error);
                 socket.emit('roulette_error', { message: 'Failed to end chat' });

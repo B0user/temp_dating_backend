@@ -6,6 +6,7 @@ class RouletteService {
     constructor() {
         this.roulettePool = new Map(); // Map<socketId, {userId, status, preferences}>
         this.activeSessions = new Map(); // Map<userId, {sessionId, partnerId}>
+        this.finishedSessions = new Map(); // Map<userId, {sessionId, partnerId}>
     }
 
     async findMatch(socketId) {
@@ -40,6 +41,12 @@ class RouletteService {
 
                 // console.log("MATCH SUCCESS", this.roulettePool);
                 // console.log("Active sessions: ", this.activeSessions);
+
+                this.roulettePool.delete(socketId);
+                this.roulettePool.delete(otherSocketId);
+
+
+                // console.log(this.roulettePool);
 
                 return {
                     roomId,
@@ -80,9 +87,6 @@ class RouletteService {
                 }
             });
 
-            // console.log("added to pool, now waiting", this.roulettePool);
-            // // console.log("len", this.roulettePool.size);
-            // if (this.roulettePool.size > 1) await this.findMatch(socketId);
 
             return true;
         } catch (error) {
@@ -100,33 +104,17 @@ class RouletteService {
     async endSession(userId) {
         const session = this.activeSessions.get(userId);
         if (!session) return null;
+        
+        const { sessionId, partnerId } = session;
+        console.log(sessionId, partnerId);
 
-        const stream = await Stream.findById(session.sessionId);
-        if (!stream) return null;
-
-        // Update stream status
-        stream.status = 'ended';
-        stream.endedAt = new Date();
-        stream.duration = (stream.endedAt - stream.startedAt) / 1000;
-
-        // Update participant info
-        const participantIndex = stream.rouletteSession.participants.findIndex(p => 
-            p.user.equals(userId)
-        );
-        if (participantIndex !== -1) {
-            stream.rouletteSession.participants[participantIndex].leftAt = new Date();
-        }
-
-        await stream.save();
-
-        // Clean up session data
+        this.finishedSessions.set(userId, { sessionId, partnerId });
+        this.finishedSessions.set(partnerId, { sessionId, partnerId: userId });
+    
         this.activeSessions.delete(userId);
-        this.activeSessions.delete(session.partnerId);
+        this.activeSessions.delete(partnerId);
 
-        return {
-            streamId: stream._id,
-            partnerId: session.partnerId
-        };
+        return;
     }
 
     getCurrentSession(userId) {
