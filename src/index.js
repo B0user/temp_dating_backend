@@ -9,6 +9,7 @@ const { createServer } = require('http');
 const { Server } = require('socket.io');
 const setupChatSocket = require('./sockets/chat.socket');
 const setupSupportSocket = require('./sockets/support.socket');
+const setupRouletteSocket = require('./sockets/roulette.socket');
 // const setupStreamSocket = require('./sockets/stream.socket');
 const path = require('path');
 
@@ -97,6 +98,7 @@ const io = new Server(httpServer, {
 });
 setupChatSocket(io);
 setupSupportSocket(io);
+setupRouletteSocket(io);
 // setupStreamSocket(io);
 
 // Error handling middleware

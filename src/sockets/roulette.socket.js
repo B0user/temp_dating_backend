@@ -1,64 +1,114 @@
 const rouletteService = require('../services/roulette.service');
 
 module.exports = (io) => {
-    io.on('connection', (socket) => {
-        console.log('User connected to roulette:', socket.id);
+    const rouletteNamespace = io.of('/roulette');
 
-        // Handle join chat roulette request
-        socket.on('join-chat-roulette-request', async ({ userId }) => {
+    rouletteNamespace.on('connection', (socket) => {
+        console.log('User connected to roulette namespace:', socket.id);
+
+        // Handle join request
+        socket.on('join_chat_roulette', async ({ userId }) => {
+            console.log('join_chat_roulette');
             try {
-                // Add user to the roulette pool
                 const added = await rouletteService.addToPool(socket.id, userId);
-                
+
                 if (!added) {
-                    socket.emit('roulette-error', { message: 'Failed to join roulette pool' });
+                    socket.emit('roulette_error', { message: 'Failed to join roulette pool' });
                     return;
                 }
 
-                // Try to find a match
-                const match = rouletteService.findMatch(socket.id);
+                const match = await rouletteService.findMatch(socket.id);
+
+                // console.log("match", match);
 
                 if (match) {
-                    // Create a room for the matched users
-                    socket.join(match.roomId);
-                    socket.to(match.roomId).join(match.roomId);
-
-                    // Notify both users about the match
-                    io.to(match.roomId).emit('roulette-chat-id-response', {
+                    // socket.join(match.roomId);
+                    // socket.to(match.partnerSocketId).join(match.roomId); // partner joins too
+                    // console.log(match.partnerSocketId);
+                    rouletteNamespace.to(match.partnerSocketId).emit('roulette_matched', {
+                        roomId: match.roomId,
+                        matchedUserId: userId
+                    });
+                    rouletteNamespace.to(socket.id).emit('roulette_matched', {
                         roomId: match.roomId,
                         matchedUserId: match.matchedUser.userId
                     });
                 }
             } catch (error) {
-                console.error('Error in join-chat-roulette-request:', error);
-                socket.emit('roulette-error', { message: 'Internal server error' });
+                console.error('Error in join_chat_roulette:', error);
+                socket.emit('roulette_error', { message: 'Internal server error' });
             }
         });
 
-        // Handle leaving the roulette
-        socket.on('leave-roulette', () => {
-            rouletteService.removeFromPool(socket.id);
-            socket.emit('roulette-left');
+        // Handle message
+        socket.on('roulette_message', ({ roomId, message }) => {
+            console.log('roulette_message');
+            rouletteNamespace.to(roomId).emit('roulette_message', { message });
         });
 
-        // Handle disconnection
-        socket.on('disconnect', () => {
-            rouletteService.removeFromPool(socket.id);
-            console.log('User disconnected from roulette:', socket.id);
+        // Leave / End chat manually
+        socket.on('leave_roulette', async () => {
+            console.log('leave_roulette');
+            try {
+                const session = rouletteService.getCurrentSession(socket.id);
+                if (session) {
+                    const result = await rouletteService.endSession(socket.id);
+                    if (result) {
+                        rouletteNamespace.to(result.roomId).emit('roulette_chat_ended', {
+                            reason: 'partner_left',
+                            streamId: result.streamId
+                        });
+                    }
+                }
+                rouletteService.removeFromPool(socket.id);
+                socket.emit('roulette_left');
+            } catch (error) {
+                console.error('Error in leave_roulette:', error);
+                socket.emit('roulette_error', { message: 'Failed to leave roulette' });
+            }
         });
 
-        // Handle chat messages in the roulette room
-        socket.on('roulette-message', ({ roomId, message }) => {
-            socket.to(roomId).emit('roulette-message', {
-                userId: socket.id,
-                message
-            });
+        // End chat explicitly
+        socket.on('end_roulette_chat', async ({ roomId }) => {
+            console.log('end_roulette_chat');
+            try {
+                const session = rouletteService.getCurrentSession(socket.id);
+                if (session) {
+                    const result = await rouletteService.endSession(socket.id);
+                    if (result) {
+                        rouletteNamespace.to(roomId).emit('roulette_chat_ended', {
+                            reason: 'ended_by_user',
+                            streamId: result.streamId
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error ending roulette chat:', error);
+                socket.emit('roulette_error', { message: 'Failed to end chat' });
+            }
         });
 
-        // Handle ending the chat
-        socket.on('end-roulette-chat', ({ roomId }) => {
-            socket.to(roomId).emit('roulette-chat-ended');
-            socket.leave(roomId);
+        // Handle disconnect
+        socket.on('disconnect', async () => {
+            console.log('disconnect');
+            try {
+                const session = rouletteService.getCurrentSession(socket.id);
+                if (session) {
+                    const result = await rouletteService.endSession(socket.id);
+                    if (result) {
+                        rouletteNamespace.to(result.roomId).emit('roulette_chat_ended', {
+                            reason: 'partner_disconnected',
+                            streamId: result.streamId
+                        });
+                    }
+                }
+                rouletteService.removeFromPool(socket.id);
+                console.log('User disconnected from roulette:', socket.id);
+            } catch (error) {
+                console.error('Error during disconnect:', error);
+            }
         });
     });
+
+    return rouletteNamespace;
 };
