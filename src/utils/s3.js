@@ -51,24 +51,38 @@ const uploadToS3 = async (file, key) => {
     }
 
     console.log("START SHARP");
+    console.log("File mimetype:", file.mimetype);
 
-    const buffer = await sharp(file.buffer)
-      .resize({ width: 1080 })
-      .webp({ quality: 50 })
-      .toBuffer();
+    let buffer;
+    try {
+      // Проверяем, является ли файл изображением
+      if (file.mimetype.startsWith('image/')) {
+        buffer = await sharp(file.buffer)
+          .resize({ width: 1080 })
+          .webp({ quality: 50 })
+          .toBuffer();
+      } else {
+        // Если это не изображение, используем оригинальный буфер
+        buffer = file.buffer;
+      }
+    } catch (sharpError) {
+      console.error('Sharp processing error:', sharpError);
+      // Если Sharp не может обработать файл, используем оригинальный буфер
+      buffer = file.buffer;
+    }
 
     console.log("AFTER ASYNC");
-    
-    console.log("New Method: optimized WebP buffer size =", buffer.length);
+    console.log("Buffer size =", buffer.length);
 
-    const imageName = `${key}.webp`;
-    console.log("New Method: Generated image name:", imageName);
+    const extension = file.mimetype.startsWith('image/') ? 'webp' : file.mimetype.split('/')[1];
+    const imageName = `${key}.${extension}`;
+    console.log("Generated file name:", imageName);
 
     const params = {
       Bucket: process.env.AWS_BUCKET_NAME,
       Key: imageName,
       Body: buffer,
-      ContentType: "image/webp",
+      ContentType: file.mimetype.startsWith('image/') ? "image/webp" : file.mimetype,
     };
 
 
